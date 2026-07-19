@@ -16,8 +16,6 @@ load_dotenv(os.path.join(PROJECT_DIR, ".env"))
 # ---- Credentials / deploy-time settings (env) ----
 API_ID = int(os.getenv("API_ID", 0) or 0)
 API_HASH = os.getenv("API_HASH", "")
-# GROUP_ID is now optional: it can be chosen/created from the web UI (Phase 2).
-GROUP_ID = int(os.getenv("GROUP_ID", 0) or 0)
 
 # Root that "local mode" folder scanning is confined to. On Android/Termux this
 # is the shared storage; on a server/cloud it defaults to the project dir so the
@@ -111,7 +109,7 @@ _DEFAULT_CONFIG = {
     "turbo_mode": False,
     "compress_media": False,
     "daily_report": True,
-    "group_id": GROUP_ID,
+    "group_id": 0,  # set from the web UI (Group & Topic setup); persisted here
     "folders": {},
 }
 
@@ -139,9 +137,9 @@ def write_config(data):
 
 
 def active_group_id():
-    """Group the bot uploads to: config.json overrides the env default."""
+    """Group the bot uploads to, as chosen in Group & Topic setup."""
     cfg = read_config()
-    return int(cfg.get("group_id") or GROUP_ID or 0)
+    return int(cfg.get("group_id") or 0)
 
 
 def file_type_for(name):

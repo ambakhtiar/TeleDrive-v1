@@ -123,12 +123,11 @@ cp .env.example .env      # Windows: copy .env.example .env
 ```env
 API_ID=your_api_id_here
 API_HASH=your_api_hash_here
-
-# Optional — you can also create/select a group from the web UI instead
-GROUP_ID=-100xxxxxxxxxx
 ```
 
-Everything else (routing rules, turbo mode, auto-delete, etc.) is configured later from the dashboard and saved automatically — there's nothing else to hand-edit.
+This is a **one-time step for whoever deploys the app** — it's never asked of whoever logs in from the browser (they only ever see phone number → OTP → 2FA password). The same `API_ID`/`API_HASH` pair can be reused across as many different phone numbers as you like; a friend can put your same values into their own `.env` instead of registering their own.
+
+Everything else — target group, routing rules, turbo mode, auto-delete, etc. — is configured later from the dashboard and saved automatically. There's nothing else to hand-edit.
 
 ---
 
@@ -192,12 +191,16 @@ Send them the **code only** — never these files (all already excluded via `.gi
 
 | File | Why it's excluded |
 |---|---|
-| `.env` | Your API credentials |
-| `backup_session.session` | Your **live Telegram login** — equivalent to a password, never share |
+| `.env` | Your `API_ID`/`API_HASH` — tied to your developer registration at my.telegram.org; fine to hand to a trusted friend privately, but don't post it publicly |
+| `backup_session.session` | Your **live Telegram login** — equivalent to a password, never share this one under any circumstances |
 | `uploads.db` | Your personal upload history |
 | `uploader.log` | Your activity log |
 
-Your friend clones the repo, gets their **own** free API credentials from [my.telegram.org](https://my.telegram.org), creates their own `.env`, and runs their own instance — completely separate from yours, with their own database and Telegram session.
+Your friend clones the repo, creates their own `.env`, and runs their own instance — completely separate process, database, and Telegram session from yours. For the `API_ID`/`API_HASH` in that `.env`, they can either:
+- get their own free pair from [my.telegram.org](https://my.telegram.org) (2 minutes), or
+- reuse the same pair you're using — one `API_ID`/`API_HASH` works for any number of different phone number logins, each in their own separate deployment.
+
+Either way, each person still needs to run their **own copy** of the app — logging in overwrites the one Telegram session a running copy holds.
 
 ---
 
