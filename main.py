@@ -193,16 +193,23 @@ async def queue_add(item: QueueAddItem):
     routing = dict(item.routing)
     try:
         info = {}
+        gid = config.active_group_id()
         if routing.get("mode") == "folder" and routing.get("auto_create"):
             scan = service.scan_path(item.path)
             names = [s["name"] for s in scan["subfolders"]]
-            res = await service.create_topics_for_folders(
-                config.active_group_id(), names
-            )
+            res = await service.create_topics_for_folders(gid, names)
             routing["folder_map"] = res["mapping"]
             routing.setdefault("default_topic", res["mapping"].get("."))
             info = {"topics_created": res["created"], "capped": res["capped"],
                     "max_topics": res["max_topics"]}
+        elif routing.get("mode") == "extension" and routing.get("auto_create"):
+            scan = service.scan_path(item.path)
+            present = {config.file_type_for("x" + e["ext"]) for e in scan["extensions"]}
+            labels = {"image": "Images", "video": "Videos", "other": "Other"}
+            wanted = [labels[t] for t in present]
+            res = await service.create_topics_for_folders(gid, wanted)
+            routing["ext_map"] = {t: res["mapping"].get(labels[t]) for t in present}
+            info = {"topics_created": res["created"]}
         result = service.enqueue_path(item.path, routing)
         result.update(info)
         return result

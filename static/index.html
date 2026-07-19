@@ -331,10 +331,9 @@ function renderRouting(){
     if(mode==='topic'){
         box.innerHTML = `<label style="font-size:12px;">All files → </label>${topicSelect('rt-topic')}`;
     } else if(mode==='extension'){
-        box.innerHTML =
-            `<label style="font-size:12px;">🖼️ Images →</label>${topicSelect('rt-img')}
-             <label style="font-size:12px;">🎬 Videos →</label>${topicSelect('rt-vid')}
-             <label style="font-size:12px;">📦 Other →</label>${topicSelect('rt-oth')}`;
+        box.innerHTML = `<p style="font-size:12px;color:#555;">Files are sorted into topics by type — auto-created (or reused) as needed:</p>
+            <div style="font-size:12px;background:#fff;border:1px solid #eee;border-radius:6px;padding:8px;">🖼️ <b>Images</b> · 🎬 <b>Videos</b> · 📦 <b>Other</b></div>
+            <p style="font-size:11px;color:#888;margin-top:6px;">Only topics for types you actually upload get created.</p>`;
     } else { // folder — auto-create a topic per subfolder
         let subs = scanData ? scanData.subfolders : foldersFromPicked();
         if(!subs.length){ box.innerHTML = `<p style="font-size:12px;color:#888;">Scan a path (or pick a folder) first to see which topics will be created.</p>`; return; }
@@ -349,20 +348,17 @@ function foldersFromPicked(){
     const m={}; pickedFiles.forEach(f=>{ const rp=(f.webkitRelativePath||f.name); const parts=rp.split('/'); const top=parts.length>1?parts[0]:'.'; m[top]=(m[top]||0)+1; });
     return Object.entries(m).map(([name,count])=>({name,count}));
 }
-function extTopicFor(name){
+function fileTypeOf(name){
     const ext='.'+(name.split('.').pop()||'').toLowerCase();
     const IMG=['.jpg','.jpeg','.png','.webp','.bmp','.svg','.gif'], VID=['.mp4','.mkv','.avi','.mov','.webm','.ts','.flv'];
-    if(IMG.includes(ext)) return parseInt(document.getElementById('rt-img').value)||0;
-    if(VID.includes(ext)) return parseInt(document.getElementById('rt-vid').value)||0;
-    return parseInt(document.getElementById('rt-oth').value)||0;
+    if(IMG.includes(ext)) return 'image';
+    if(VID.includes(ext)) return 'video';
+    return 'other';
 }
 function buildRouting(){
     const mode=document.getElementById('route-mode').value;
     if(mode==='topic'){ return {mode:'topic', topic_id:parseInt(document.getElementById('rt-topic').value)||0}; }
-    if(mode==='extension'){ return {mode:'extension', ext_map:{
-        image:parseInt(document.getElementById('rt-img').value)||0,
-        video:parseInt(document.getElementById('rt-vid').value)||0,
-        other:parseInt(document.getElementById('rt-oth').value)||0}}; }
+    if(mode==='extension'){ return {mode:'extension', auto_create:true}; }
     return {mode:'folder', auto_create:true};
 }
 function submitAdd(){
@@ -383,11 +379,16 @@ function submitAdd(){
 // per-file browser upload (one request per file → a dropped connection never kills the batch)
 async function uploadFromDevice(routing){
     if(!pickedFiles.length){ showToast('Pick files first',true); return; }
-    // Resolve folder→topic map up front for folder mode.
-    let folderMap={};
+    // Resolve the topic map up front (auto-creating topics as needed).
+    let folderMap={}, typeMap={};
+    const LABEL={image:'Images',video:'Videos',other:'Other'};
     if(routing.mode==='folder'){
         const names=foldersFromPicked().map(s=>s.name);
         try{ const res=await tgHandle('/api/topics/ensure_folders',{group_id:currentGroupId,folders:names}); folderMap=res.mapping||{}; }
+        catch(e){ showToast(e.message,true); return; }
+    } else if(routing.mode==='extension'){
+        const present=[...new Set(pickedFiles.map(f=>LABEL[fileTypeOf(f.name)]))];
+        try{ const res=await tgHandle('/api/topics/ensure_folders',{group_id:currentGroupId,folders:present}); typeMap=res.mapping||{}; }
         catch(e){ showToast(e.message,true); return; }
     }
     const total=pickedFiles.length; let done=0, ok=0;
@@ -396,7 +397,7 @@ async function uploadFromDevice(routing){
         const rel=f.webkitRelativePath||f.name;
         let topic=0;
         if(routing.mode==='topic') topic=routing.topic_id;
-        else if(routing.mode==='extension') topic=extTopicFor(f.name);
+        else if(routing.mode==='extension') topic=typeMap[LABEL[fileTypeOf(f.name)]]||1;
         else { const parts=rel.split('/'); const top=parts.length>1?parts[0]:'.'; topic=folderMap[top]||1; }
         const fd=new FormData(); fd.append('file',f); fd.append('topic_id',topic); fd.append('rel_path',rel);
         try{
