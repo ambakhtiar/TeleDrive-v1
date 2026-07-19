@@ -87,8 +87,9 @@
     </div>
 
     <div id="main-dashboard" class="card">
-        <div style="display:flex;justify-content:center;align-items:center;">
-            <h2>⚙️ Control Panel <span id="ws-dot" class="ws-dot"></span></h2>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+            <h2 style="margin:0;">⚙️ Control Panel <span id="ws-dot" class="ws-dot"></span></h2>
+            <button id="logout-btn" onclick="tgLogout()" class="btn" style="display:none;width:auto;background:#fff;border:1px solid #d93025;color:#d93025;padding:8px 14px;">🚪 Logout</button>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
             <span style="font-weight:500;">System Status:</span>
@@ -501,12 +502,15 @@ function tgVerifyPassword(){
     tgHandle('/api/auth/verify_password',{password}).then(tgLoggedIn).catch(e=>tgError(e.message));
 }
 function tgLoggedIn(){ closeModal('tg-login-modal'); showToast('✅ Telegram connected'); refreshSnapshot(); refreshAccount(); }
-function tgLogout(){ showConfirm('Disconnect Telegram?','This logs out the Telegram session stored on this server.','Disconnect','#d93025',()=>{ tgPost('/api/auth/logout',{}).then(()=>{ refreshSnapshot(); refreshAccount(); }); }); }
+function tgLogout(){ showConfirm('Disconnect Telegram?','This logs out the Telegram session on this server. You will need to sign in again with your phone + code to keep uploading.','Logout','#d93025',()=>{ tgPost('/api/auth/logout',{}).then(()=>{ showToast('👋 Logged out'); window._tgPrompted=false; refreshSnapshot(); refreshAccount(); openTgLogin(); }); }); }
 function refreshAccount(){
     apiFetch('/api/auth/status').then(d=>{
         const el=document.getElementById('tg-account');
-        if(d.auth_state==='authorized' && d.me){ el.style.display='block'; el.innerHTML=`✅ Connected as <b>${d.me.first_name||''}</b> ${d.me.username?('@'+d.me.username):''} <a href="#" onclick="tgLogout();return false;" style="color:#d93025;">(disconnect)</a>`; }
+        const btn=document.getElementById('logout-btn');
+        const connected = d.auth_state==='authorized' && d.me;
+        if(connected){ el.style.display='block'; el.innerHTML=`✅ Connected as <b>${d.me.first_name||''}</b> ${d.me.username?('@'+d.me.username):''}`; }
         else { el.style.display='none'; }
+        btn.style.display = connected ? 'inline-block' : 'none';
     });
 }
 
