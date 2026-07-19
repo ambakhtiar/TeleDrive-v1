@@ -546,6 +546,7 @@ function renderProgressList(items) {
             </div>
             <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${p.percentage}%;"></div></div>
             <div class="progress-stats"><span>${p.percentage}%</span><span style="color:#1e8e3e;">${fmtSpeed(p.speed)}</span><span>${fmtBytes(p.current)}/${fmtBytes(p.total)}</span></div>
+            <div style="text-align:center;font-size:11px;color:#f29900;font-weight:bold;margin-top:4px;">⏳ ${fmtETA(p.eta)} left</div>
         </div>`).join('');
 }
 function renderFailed(items){
@@ -569,6 +570,7 @@ function appendLog(line) {
 
 function fmtBytes(b){ if(!b||b<=0)return '0B'; const k=1024,s=['B','KB','MB','GB'],i=Math.floor(Math.log(b)/Math.log(k)); return (b/Math.pow(k,i)).toFixed(1)+s[i]; }
 function fmtSpeed(v){ if(!v||v<=0)return '-'; return v<1048576?(v/1024).toFixed(1)+'KB/s':(v/1048576).toFixed(2)+'MB/s'; }
+function fmtETA(s){ if(s==null||s<0||!isFinite(s))return '—'; s=Math.round(s); if(s<60)return s+'s'; const m=Math.floor(s/60),sec=s%60; if(m<60)return m+'m '+sec+'s'; const h=Math.floor(m/60); return h+'h '+(m%60)+'m'; }
 
 function showToast(m, danger=false){ const t=document.getElementById('toast'); t.innerText=m; t.style.background=danger?'#d93025':'#1e8e3e'; t.style.bottom='20px'; setTimeout(()=>t.style.bottom='-100px',3500); }
 
