@@ -121,6 +121,11 @@
 
         <button onclick="openAddModal()" class="btn-add" style="margin-top:12px;background:#0b8043;">📥 Add Files / Folder</button>
 
+        <div id="upload-banner" style="display:none;background:#e8f0fe;border:1px solid #cce0ff;border-radius:8px;padding:10px;margin-top:12px;font-size:13px;color:#1a73e8;font-weight:bold;">
+            <span class="spin" style="border-color:rgba(26,115,232,.3);border-top-color:#1a73e8;"></span>
+            <span id="upload-banner-text">Sending files…</span>
+        </div>
+
         <div style="display:flex;justify-content:space-between;align-items:center;">
             <h3 style="border:none;margin-bottom:0;">⬆️ Active Uploads</h3>
             <button onclick="clearQueue()" class="btn" style="width:auto;background:#5f6368;font-size:11px;padding:6px 10px;">🧹 Clear Queue</button>
@@ -398,20 +403,32 @@ function submitAdd(){
 // per-file browser upload (one request per file → a dropped connection never kills the batch)
 async function uploadFromDevice(routing){
     if(!pickedFiles.length){ showToast('Pick files first',true); return; }
+    setAddBusy(true, 'Preparing…');
     // Resolve the topic map up front (auto-creating topics as needed).
     let folderMap={}, typeMap={};
-    if(routing.mode==='folder'){
-        const names=foldersFromPicked().map(s=>s.name);
-        try{ const res=await tgHandle('/api/topics/ensure_folders',{group_id:currentGroupId,folders:names}); folderMap=res.mapping||{}; }
-        catch(e){ showToast(e.message,true); return; }
-    } else if(routing.mode==='extension'){
-        const present=[...new Set(pickedFiles.map(f=>LABEL[fileTypeOf(f.name)]))];
-        try{ const res=await tgHandle('/api/topics/ensure_folders',{group_id:currentGroupId,folders:present}); typeMap=res.mapping||{}; }
-        catch(e){ showToast(e.message,true); return; }
-    }
-    const total=pickedFiles.length; let done=0, ok=0;
-    setAddBusy(true, `Uploading 0/${total}…`);
-    for(const f of pickedFiles){
+    try{
+        if(routing.mode==='folder'){
+            const names=foldersFromPicked().map(s=>s.name);
+            folderMap=(await tgHandle('/api/topics/ensure_folders',{group_id:currentGroupId,folders:names})).mapping||{};
+        } else if(routing.mode==='extension'){
+            const present=[...new Set(pickedFiles.map(f=>LABEL[fileTypeOf(f.name)]))];
+            typeMap=(await tgHandle('/api/topics/ensure_folders',{group_id:currentGroupId,folders:present})).mapping||{};
+        }
+    }catch(e){ setAddBusy(false); showToast(e.message,true); return; }
+
+    // Topics are ready — hand off to the background and return to the dashboard.
+    const files=pickedFiles.slice();
+    setAddBusy(false);
+    closeModal('add-modal');
+    showBanner(`Sending 0/${files.length} to server…`);
+    backgroundUpload(files, routing, folderMap, typeMap);
+}
+function showBanner(text){ document.getElementById('upload-banner-text').innerText=text; document.getElementById('upload-banner').style.display='block'; }
+function hideBanner(){ document.getElementById('upload-banner').style.display='none'; }
+
+async function backgroundUpload(files, routing, folderMap, typeMap){
+    const total=files.length; let done=0, ok=0;
+    for(const f of files){
         const rel=f.webkitRelativePath||f.name;
         let topic=0;
         if(routing.mode==='topic') topic=routing.topic_id;
@@ -422,10 +439,10 @@ async function uploadFromDevice(routing){
             const r=await fetch('/api/upload',{method:'POST',body:fd});
             const j=await r.json(); if(r.ok && j.queued) ok++;
         }catch(e){ /* keep going */ }
-        done++; setAddBusy(true, `Uploading ${done}/${total}…`);
+        done++; showBanner(`Sending ${done}/${total} to server…`);
     }
-    setAddBusy(false);
-    showToast(`⬆️ Sent ${ok}/${total} to the queue`); closeModal('add-modal');
+    hideBanner();
+    showToast(`⬆️ Sent ${ok}/${total} to the queue`);
 }
 // file/folder pickers + drag-drop
 window.addEventListener('DOMContentLoaded',()=>{
