@@ -138,11 +138,26 @@ class UploaderService:
         self.emit("log", {"line": line})
 
     # ---------- lifecycle ----------
+    def _make_client(self):
+        return TelegramClient(config.SESSION_FILE, config.API_ID, config.API_HASH)
+
+    async def _fresh_client(self):
+        """Build and connect a brand-new client. Needed because Telethon
+        forbids reusing an instance after log_out()."""
+        try:
+            if self.client:
+                await self.client.disconnect()
+        except Exception:
+            pass
+        self.client = self._make_client()
+        await self.client.connect()
+        return self.client
+
     async def start(self):
         if self._started:
             return
         self._started = True
-        self.client = TelegramClient(config.SESSION_FILE, config.API_ID, config.API_HASH)
+        self.client = self._make_client()
         try:
             await self.client.connect()
             if await self.client.is_user_authorized():
@@ -413,9 +428,22 @@ class UploaderService:
     # ---------- web login (phone → OTP → 2FA) ----------
     async def send_login_code(self, phone: str):
         """Step 1: request an OTP be sent to the phone number."""
-        if not self.client.is_connected():
-            await self.client.connect()
-        sent = await self.client.send_code_request(phone)
+        if self.client is None:
+            await self._fresh_client()
+        elif not self.client.is_connected():
+            try:
+                await self.client.connect()
+            except Exception:
+                await self._fresh_client()
+        try:
+            sent = await self.client.send_code_request(phone)
+        except Exception as e:
+            # A client that was logged out cannot be reused — rebuild once.
+            if "reused" in str(e).lower() or "logged out" in str(e).lower():
+                await self._fresh_client()
+                sent = await self.client.send_code_request(phone)
+            else:
+                raise
         self._login_phone = phone
         self._login_hash = sent.phone_code_hash
         self.log(f"📲 OTP requested for {phone}")
@@ -453,6 +481,12 @@ class UploaderService:
             await self.client.log_out()
         except Exception:
             pass
+        # Telethon can't reuse a logged-out client, so stand up a fresh one
+        # immediately — a new phone/OTP login then works without a restart.
+        try:
+            await self._fresh_client()
+        except Exception as e:
+            self.log(f"⚠️ Could not reset client after logout: {e}")
         self.auth_state = "unauthorized"
         self.emit("auth", {"auth_state": self.auth_state})
         self.log("👋 Logged out of Telegram.")
