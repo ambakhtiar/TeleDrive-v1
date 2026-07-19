@@ -270,8 +270,14 @@ def stats():
 
 
 @api.get("/history")
-def history(query: str = "", limit: int = 20, offset: int = 0):
-    return service.db.history(query, limit, offset)
+def history(query: str = "", limit: int = 20, offset: int = 0, ext: str = "",
+            date_from: str = "", date_to: str = "", sort: str = "desc"):
+    return service.db.history(query, limit, offset, ext, date_from, date_to, sort)
+
+
+@api.get("/history/extensions")
+def history_extensions():
+    return service.db.distinct_extensions()
 
 
 @api.get("/daily_reports")
@@ -351,11 +357,13 @@ async def ws(websocket: WebSocket):
 
 # ---------- CSV export ----------
 @app.get("/export.csv")
-def export_csv():
+def export_csv(query: str = "", ext: str = "", date_from: str = "",
+                date_to: str = "", sort: str = "desc"):
     import csv, io
     from fastapi.responses import StreamingResponse
 
-    rows = service.db.history(limit=100000, offset=0)
+    rows = service.db.history(query, limit=1000000, offset=0, ext=ext,
+                               date_from=date_from, date_to=date_to, sort=sort)
     buf = io.StringIO()
     w = csv.writer(buf)
     w.writerow(["file_name", "uploaded_at", "message_link"])
@@ -373,6 +381,14 @@ def export_csv():
 @app.get("/", response_class=HTMLResponse)
 def index():
     path = os.path.join(STATIC_DIR, "index.html")
+    if os.path.exists(path):
+        return FileResponse(path)
+    return HTMLResponse("<h1>UI missing</h1>")
+
+
+@app.get("/history", response_class=HTMLResponse)
+def history_page():
+    path = os.path.join(STATIC_DIR, "history.html")
     if os.path.exists(path):
         return FileResponse(path)
     return HTMLResponse("<h1>UI missing</h1>")

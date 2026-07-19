@@ -51,21 +51,40 @@ class Database:
             ).fetchall()
         return [{"name": r[0], "time": r[1], "link": r[2]} for r in rows]
 
-    def history(self, query="", limit=20, offset=0):
+    def history(self, query="", limit=20, offset=0, ext="", date_from="",
+                date_to="", sort="desc"):
+        clauses, params = [], []
+        if query:
+            clauses.append("file_name LIKE ?")
+            params.append(f"%{query}%")
+        if ext:
+            clauses.append("LOWER(file_name) LIKE ?")
+            params.append(f"%.{ext.lower().lstrip('.')}")
+        if date_from:
+            clauses.append("date(uploaded_at, 'localtime') >= ?")
+            params.append(date_from)
+        if date_to:
+            clauses.append("date(uploaded_at, 'localtime') <= ?")
+            params.append(date_to)
+        where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
+        order = "ASC" if str(sort).lower() == "asc" else "DESC"
+        sql = (f"SELECT file_name, uploaded_at, message_link FROM uploads "
+               f"{where} ORDER BY uploaded_at {order} LIMIT ? OFFSET ?")
         with self._lock:
-            if query:
-                rows = self.conn.execute(
-                    "SELECT file_name, uploaded_at, message_link FROM uploads "
-                    "WHERE file_name LIKE ? ORDER BY uploaded_at DESC LIMIT ? OFFSET ?",
-                    (f"%{query}%", limit, offset),
-                ).fetchall()
-            else:
-                rows = self.conn.execute(
-                    "SELECT file_name, uploaded_at, message_link FROM uploads "
-                    "ORDER BY uploaded_at DESC LIMIT ? OFFSET ?",
-                    (limit, offset),
-                ).fetchall()
+            rows = self.conn.execute(sql, (*params, limit, offset)).fetchall()
         return [{"name": r[0], "time": r[1], "link": r[2]} for r in rows]
+
+    def distinct_extensions(self):
+        with self._lock:
+            rows = self.conn.execute("SELECT file_name FROM uploads").fetchall()
+        exts = {}
+        for (name,) in rows:
+            if "." in name:
+                e = name.rsplit(".", 1)[1].lower()
+                if e and len(e) <= 8:
+                    exts[e] = exts.get(e, 0) + 1
+        return sorted(({"ext": k, "count": v} for k, v in exts.items()),
+                      key=lambda x: -x["count"])
 
     def daily_reports(self, days=30):
         with self._lock:
