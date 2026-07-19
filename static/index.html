@@ -545,7 +545,7 @@ function renderFailed(items){
         `<div style="padding:4px 0;border-bottom:1px solid #fad2cf;">📄 ${f.name}<br><span style="color:#a52714;font-size:11px;">${(f.error||'').slice(0,80)}</span></div>`).join('');
 }
 function cancelItem(h){ apiFetch('/api/queue/cancel/'+h,{method:'POST'}); showToast('🚫 Cancelling…'); }
-function clearQueue(){ showConfirm('Clear the queue?','Remove all queued files that haven\\'t started uploading yet.','Clear','#5f6368',()=>{ apiFetch('/api/queue/clear',{method:'POST'}).then(r=>showToast(`🧹 Cleared ${r.cleared}`)); }); }
+function clearQueue(){ showConfirm('Clear the queue?','Remove all queued files that have not started uploading yet.','Clear','#5f6368',()=>{ apiFetch('/api/queue/clear',{method:'POST'}).then(r=>showToast(`🧹 Cleared ${r.cleared}`)); }); }
 function retryFailed(){ apiFetch('/api/queue/retry_failed',{method:'POST'}).then(r=>showToast(`🔁 Re-queued ${r.requeued}`)); }
 
 function appendLog(line) {
