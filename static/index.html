@@ -338,7 +338,7 @@ function renderRouting(){
         box.innerHTML = `<label style="font-size:12px;">All files → </label>${topicSelect('rt-topic')}`;
     } else if(mode==='extension'){
         box.innerHTML = `<p style="font-size:12px;color:#555;">Files are sorted into topics by type — auto-created (or reused) as needed:</p>
-            <div style="font-size:12px;background:#fff;border:1px solid #eee;border-radius:6px;padding:8px;">🖼️ <b>Images</b> · 🎬 <b>Videos</b> · 📦 <b>Other</b></div>
+            <div style="font-size:12px;background:#fff;border:1px solid #eee;border-radius:6px;padding:8px;line-height:1.8;">🖼️ <b>Images</b> · 🎬 <b>Videos</b> · 🎵 <b>Audios</b> · 📄 <b>Documents</b> · 💻 <b>Coding</b> · 🗜️ <b>Compressed</b> · ⚙️ <b>Programme</b> · 📦 <b>Others</b></div>
             <p style="font-size:11px;color:#888;margin-top:6px;">Only topics for types you actually upload get created.</p>`;
     } else { // folder — auto-create a topic per subfolder
         let subs = scanData ? scanData.subfolders : foldersFromPicked();
@@ -354,11 +354,19 @@ function foldersFromPicked(){
     const m={}; pickedFiles.forEach(f=>{ const rp=(f.webkitRelativePath||f.name); const parts=rp.split('/'); const top=parts.length>1?parts[0]:'.'; m[top]=(m[top]||0)+1; });
     return Object.entries(m).map(([name,count])=>({name,count}));
 }
+const FILE_CATEGORIES={
+    image:['.jpg','.jpeg','.png','.gif','.webp','.bmp','.svg','.tiff','.tif','.heic','.heif','.ico'],
+    video:['.mp4','.mkv','.avi','.mov','.webm','.ts','.flv','.wmv','.m4v','.mpeg','.mpg','.3gp','.m2ts'],
+    audio:['.mp3','.wav','.flac','.aac','.ogg','.m4a','.wma','.opus','.amr','.aiff','.mid'],
+    document:['.pdf','.doc','.docx','.xls','.xlsx','.ppt','.pptx','.txt','.rtf','.odt','.ods','.odp','.csv','.epub','.md'],
+    coding:['.py','.js','.ts','.jsx','.tsx','.java','.c','.cpp','.cc','.h','.hpp','.cs','.go','.rs','.rb','.php','.html','.htm','.css','.scss','.json','.xml','.yaml','.yml','.sh','.bat','.ps1','.sql','.kt','.swift','.dart','.r','.lua','.pl'],
+    compressed:['.zip','.rar','.7z','.tar','.gz','.bz2','.xz','.tgz','.iso','.cab','.arj'],
+    program:['.exe','.msi','.apk','.deb','.rpm','.dmg','.appimage','.bin','.app','.jar'],
+};
+const LABEL={image:'Images',video:'Videos',audio:'Audios',document:'Documents',coding:'Coding',compressed:'Compressed',program:'Programme',other:'Others'};
 function fileTypeOf(name){
     const ext='.'+(name.split('.').pop()||'').toLowerCase();
-    const IMG=['.jpg','.jpeg','.png','.webp','.bmp','.svg','.gif'], VID=['.mp4','.mkv','.avi','.mov','.webm','.ts','.flv'];
-    if(IMG.includes(ext)) return 'image';
-    if(VID.includes(ext)) return 'video';
+    for(const cat in FILE_CATEGORIES){ if(FILE_CATEGORIES[cat].includes(ext)) return cat; }
     return 'other';
 }
 function buildRouting(){
@@ -392,7 +400,6 @@ async function uploadFromDevice(routing){
     if(!pickedFiles.length){ showToast('Pick files first',true); return; }
     // Resolve the topic map up front (auto-creating topics as needed).
     let folderMap={}, typeMap={};
-    const LABEL={image:'Images',video:'Videos',other:'Other'};
     if(routing.mode==='folder'){
         const names=foldersFromPicked().map(s=>s.name);
         try{ const res=await tgHandle('/api/topics/ensure_folders',{group_id:currentGroupId,folders:names}); folderMap=res.mapping||{}; }

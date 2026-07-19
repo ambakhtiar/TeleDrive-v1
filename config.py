@@ -69,6 +69,44 @@ SCAN_INTERVAL = int(os.getenv("SCAN_INTERVAL", 3))
 IMAGE_EXTS = [".jpg", ".jpeg", ".png", ".webp", ".bmp", ".svg", ".gif"]
 VIDEO_EXTS = [".mp4", ".mkv", ".avi", ".mov", ".webm", ".ts", ".flv"]
 
+# ---- "By file type" categories ----
+# Each category maps to a Telegram topic (auto-created / reused) whose title is
+# CATEGORY_LABELS[key]. Order matters: first matching category wins.
+FILE_CATEGORIES = {
+    "image": [".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg",
+              ".tiff", ".tif", ".heic", ".heif", ".ico"],
+    "video": [".mp4", ".mkv", ".avi", ".mov", ".webm", ".ts", ".flv",
+              ".wmv", ".m4v", ".mpeg", ".mpg", ".3gp", ".m2ts"],
+    "audio": [".mp3", ".wav", ".flac", ".aac", ".ogg", ".m4a", ".wma",
+              ".opus", ".amr", ".aiff", ".mid"],
+    "document": [".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
+                 ".txt", ".rtf", ".odt", ".ods", ".odp", ".csv", ".epub", ".md"],
+    "coding": [".py", ".js", ".ts", ".jsx", ".tsx", ".java", ".c", ".cpp",
+               ".cc", ".h", ".hpp", ".cs", ".go", ".rs", ".rb", ".php",
+               ".html", ".htm", ".css", ".scss", ".json", ".xml", ".yaml",
+               ".yml", ".sh", ".bat", ".ps1", ".sql", ".kt", ".swift", ".dart",
+               ".r", ".lua", ".pl"],
+    "compressed": [".zip", ".rar", ".7z", ".tar", ".gz", ".bz2", ".xz",
+                   ".tgz", ".iso", ".cab", ".arj"],
+    "program": [".exe", ".msi", ".apk", ".deb", ".rpm", ".dmg", ".appimage",
+                ".bin", ".app", ".jar"],
+}
+CATEGORY_LABELS = {
+    "image": "Images", "video": "Videos", "audio": "Audios",
+    "document": "Documents", "coding": "Coding", "compressed": "Compressed",
+    "program": "Programme", "other": "Others",
+}
+
+
+def category_for(name):
+    """Return the category key for a filename (falls back to 'other')."""
+    ext = os.path.splitext(name)[1].lower()
+    for cat, exts in FILE_CATEGORIES.items():
+        if ext in exts:
+            return cat
+    return "other"
+
+
 _DEFAULT_CONFIG = {
     "auto_delete_after_upload": False,
     "turbo_mode": False,

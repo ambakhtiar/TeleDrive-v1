@@ -205,8 +205,8 @@ async def queue_add(item: QueueAddItem):
                     "max_topics": res["max_topics"]}
         elif routing.get("mode") == "extension" and routing.get("auto_create"):
             scan = await asyncio.to_thread(service.scan_path, item.path)
-            present = {config.file_type_for("x" + e["ext"]) for e in scan["extensions"]}
-            labels = {"image": "Images", "video": "Videos", "other": "Other"}
+            present = {config.category_for("x" + e["ext"]) for e in scan["extensions"]}
+            labels = config.CATEGORY_LABELS
             wanted = [labels[t] for t in present]
             res = await service.create_topics_for_folders(gid, wanted)
             routing["ext_map"] = {t: res["mapping"].get(labels[t]) for t in present}

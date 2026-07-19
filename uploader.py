@@ -543,13 +543,9 @@ class UploaderService:
         if mode == "topic":
             return routing.get("topic_id")
         if mode == "extension":
-            ext = os.path.splitext(filename)[1].lower()
             emap = routing.get("ext_map", {})
-            if ext in config.IMAGE_EXTS:
-                return emap.get("image") or emap.get("all")
-            if ext in config.VIDEO_EXTS:
-                return emap.get("video") or emap.get("all")
-            return emap.get("other") or emap.get("all")
+            cat = config.category_for(filename)
+            return emap.get(cat) or emap.get("other") or emap.get("all")
         if mode == "folder":
             top = "." if rel_root in ("", ".") else rel_root.split(os.sep)[0]
             fmap = routing.get("folder_map", {})
