@@ -36,3 +36,9 @@ __pycache__/
 AGENT.md
 CLAUDE.md
 .agent-mem/
+
+# Local IDE / tooling (not part of the app)
+.brainsync/
+.cursor/
+.vscode/
+.mcp.json
