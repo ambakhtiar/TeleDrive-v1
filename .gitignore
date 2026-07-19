@@ -43,3 +43,21 @@ CLAUDE.md
 .vscode/
 .mcp.json
 .agents/
+
+# Other env files / secrets (keep only .env.example tracked)
+.env.*
+!.env.example
+
+# OS junk
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Python virtual environments
+venv/
+.venv/
+env/
+
+# Editor backups
+*.swp
+*~
