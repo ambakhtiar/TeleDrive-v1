@@ -8,7 +8,7 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import (
-    FastAPI, APIRouter, Header, HTTPException, Depends, WebSocket,
+    FastAPI, APIRouter, HTTPException, WebSocket,
     WebSocketDisconnect,
 )
 from fastapi.responses import HTMLResponse, FileResponse
@@ -39,11 +39,6 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Telegram Uploader", lifespan=lifespan)
 api = APIRouter()
-
-
-def verify_pin(x_pin: str = Header(None)):
-    if x_pin != config.DASHBOARD_PIN:
-        raise HTTPException(status_code=401, detail="Unauthorized")
 
 
 # ---------- models ----------
@@ -326,16 +321,12 @@ def update_settings(item: SettingsItem):
     return {"status": "success"}
 
 
-app.include_router(api, prefix="/api", dependencies=[Depends(verify_pin)])
+app.include_router(api, prefix="/api")
 
 
 # ---------- websocket (live feed) ----------
 @app.websocket("/ws")
 async def ws(websocket: WebSocket):
-    # Auth via query param since browsers can't set headers on WS.
-    if websocket.query_params.get("pin") != config.DASHBOARD_PIN:
-        await websocket.close(code=1008)
-        return
     await websocket.accept()
     q = service.subscribe()
     try:
@@ -349,14 +340,12 @@ async def ws(websocket: WebSocket):
         service.unsubscribe(q)
 
 
-# ---------- CSV export (pin via query param for direct browser download) ----------
+# ---------- CSV export ----------
 @app.get("/export.csv")
-def export_csv(pin: str = ""):
+def export_csv():
     import csv, io
     from fastapi.responses import StreamingResponse
 
-    if pin != config.DASHBOARD_PIN:
-        raise HTTPException(status_code=401, detail="Unauthorized")
     rows = service.db.history(limit=100000, offset=0)
     buf = io.StringIO()
     w = csv.writer(buf)

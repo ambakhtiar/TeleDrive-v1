@@ -65,7 +65,7 @@ uvicorn main:app --host 0.0.0.0 --port 8000
 Open `http://localhost:8000` (or your device IP, e.g. `http://192.168.0.x:8000`).
 
 ## 🎮 How to Use
-1. Enter the dashboard **PIN**.
+1. Open the dashboard — it loads directly (no PIN). ⚠️ There is **no access control**, so only run this on a trusted machine/LAN. Do not expose it to the public internet without adding your own protection (reverse-proxy auth, VPN, etc.).
 2. **Connect Telegram** — enter your phone → the OTP Telegram sends → your 2FA password (if enabled). The login stays on your server.
 3. **🎯 Group Setup** — create a brand-new group (Topics auto-enabled) or select an existing one, then create/list topics and copy their IDs.
 4. **📥 Add Files / Folder:**
