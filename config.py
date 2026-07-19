@@ -18,7 +18,6 @@ API_ID = int(os.getenv("API_ID", 0) or 0)
 API_HASH = os.getenv("API_HASH", "")
 # GROUP_ID is now optional: it can be chosen/created from the web UI (Phase 2).
 GROUP_ID = int(os.getenv("GROUP_ID", 0) or 0)
-DASHBOARD_PIN = os.getenv("DASHBOARD_PIN", "1234")
 
 # Root that "local mode" folder scanning is confined to. On Android/Termux this
 # is the shared storage; on a server/cloud it defaults to the project dir so the
