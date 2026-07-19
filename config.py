@@ -33,9 +33,26 @@ if not os.path.isdir(SCAN_ROOT):
 DATA_DIR = os.getenv("DATA_DIR", PROJECT_DIR)
 os.makedirs(DATA_DIR, exist_ok=True)
 
-# Directory where browser-uploaded files are staged before being sent.
+# Directory where browser-uploaded files are TEMPORARILY staged before being
+# sent to Telegram, then deleted. Local-path uploads never touch this — they
+# read the original file in place. Created lazily (see ensure_staging), so it
+# doesn't clutter storage unless you actually upload from a device.
 UPLOAD_STAGING_DIR = os.path.join(DATA_DIR, "uploads_staging")
-os.makedirs(UPLOAD_STAGING_DIR, exist_ok=True)
+
+
+def ensure_staging():
+    os.makedirs(UPLOAD_STAGING_DIR, exist_ok=True)
+    return UPLOAD_STAGING_DIR
+
+
+def cleanup_staging():
+    """Remove any leftover staged files (e.g. after a crash mid-upload)."""
+    import shutil
+    if os.path.isdir(UPLOAD_STAGING_DIR):
+        try:
+            shutil.rmtree(UPLOAD_STAGING_DIR)
+        except Exception:
+            pass
 
 # ---- Data files ----
 DB_FILE = os.path.join(DATA_DIR, "uploads.db")

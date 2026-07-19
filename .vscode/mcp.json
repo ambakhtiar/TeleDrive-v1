@@ -1,0 +1,14 @@
+{
+  "servers": {
+    "brainsync": {
+      "command": "node",
+      "args": [
+        "c:\\Users\\AM Bakhtiar\\.antigravity-ide\\extensions\\dawoodahmad.brainsync-3.0.12-universal\\dist\\mcp-server.js"
+      ],
+      "type": "stdio",
+      "env": {
+        "BRAINSYNC_ENV_FILE": "C:\\Users\\AM Bakhtiar\\.bsync_core\\telegram-file-uploading-bot-534360f2\\mcp-secret-env.json"
+      }
+    }
+  }
+}

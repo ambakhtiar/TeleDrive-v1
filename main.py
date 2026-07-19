@@ -30,6 +30,7 @@ STATIC_DIR = os.path.join(config.PROJECT_DIR, "static")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global service
+    config.cleanup_staging()  # remove leftover browser-upload temp files
     service = UploaderService()
     await service.start()
     yield
@@ -46,12 +47,6 @@ def verify_pin(x_pin: str = Header(None)):
 
 
 # ---------- models ----------
-class FolderRule(BaseModel):
-    name: str
-    file_type: str
-    topic_id: int
-
-
 class SettingsItem(BaseModel):
     auto_delete: bool
     turbo_mode: bool
@@ -198,41 +193,70 @@ def scan(item: ScanItem):
 
 
 @api.post("/queue/add")
-def queue_add(item: QueueAddItem):
+async def queue_add(item: QueueAddItem):
+    _require_auth()
+    routing = dict(item.routing)
+    try:
+        info = {}
+        if routing.get("mode") == "folder" and routing.get("auto_create"):
+            scan = service.scan_path(item.path)
+            names = [s["name"] for s in scan["subfolders"]]
+            res = await service.create_topics_for_folders(
+                config.active_group_id(), names
+            )
+            routing["folder_map"] = res["mapping"]
+            routing.setdefault("default_topic", res["mapping"].get("."))
+            info = {"topics_created": res["created"], "capped": res["capped"],
+                    "max_topics": res["max_topics"]}
+        result = service.enqueue_path(item.path, routing)
+        result.update(info)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+class EnsureFolders(BaseModel):
+    group_id: int
+    folders: List[str]
+
+
+@api.post("/topics/ensure_folders")
+async def ensure_folders(item: EnsureFolders):
+    """Create (or reuse) one topic per folder name; return {name: topic_id}."""
     _require_auth()
     try:
-        return service.enqueue_path(item.path, item.routing)
+        return await service.create_topics_for_folders(item.group_id, item.folders)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @api.post("/upload")
 async def upload(
-    files: List[UploadFile] = File(...),
-    routing: str = Form(...),
-    paths: str = Form("[]"),
+    file: UploadFile = File(...),
+    topic_id: int = Form(0),
+    rel_path: str = Form(""),
 ):
+    """Stage ONE browser-uploaded file and queue it. Called once per file so a
+    dropped connection never loses a whole batch."""
     _require_auth()
-    routing_spec = _json.loads(routing)
-    rel_paths = _json.loads(paths)
+    config.ensure_staging()
+    rel = (rel_path or file.filename).replace("\\", "/").lstrip("/")
     batch_dir = os.path.join(config.UPLOAD_STAGING_DIR, uuid.uuid4().hex[:12])
-    os.makedirs(batch_dir, exist_ok=True)
-    added = 0
-    for idx, up in enumerate(files):
-        rel = rel_paths[idx] if idx < len(rel_paths) else up.filename
-        rel = rel.replace("\\", "/").lstrip("/")
-        dest = os.path.normpath(os.path.join(batch_dir, rel))
-        if not dest.startswith(os.path.normpath(batch_dir)):
-            continue  # path traversal guard
-        os.makedirs(os.path.dirname(dest), exist_ok=True)
-        with open(dest, "wb") as out:
-            while chunk := await up.read(1024 * 1024):
-                out.write(chunk)
-        rel_root = os.path.dirname(rel)
-        topic_id = service._topic_for(os.path.basename(rel), rel_root, routing_spec)
-        if topic_id and service.enqueue_staged_file(dest, int(topic_id)):
-            added += 1
-    return {"added": added, "received": len(files)}
+    dest = os.path.normpath(os.path.join(batch_dir, rel))
+    if not dest.startswith(os.path.normpath(batch_dir)):
+        raise HTTPException(status_code=400, detail="Invalid path.")
+    os.makedirs(os.path.dirname(dest), exist_ok=True)
+    with open(dest, "wb") as out:
+        while chunk := await file.read(1024 * 1024):
+            out.write(chunk)
+    ok = service.enqueue_staged_file(dest, int(topic_id))
+    if not ok:
+        # Duplicate or bad file — don't leave the copy sitting around.
+        try:
+            os.remove(dest)
+        except OSError:
+            pass
+    return {"queued": bool(ok), "name": os.path.basename(rel)}
 
 
 # ---------- endpoints ----------
@@ -300,25 +324,6 @@ def update_settings(item: SettingsItem):
     cfg["daily_report"] = item.daily_report
     config.write_config(cfg)
     return {"status": "success"}
-
-
-@api.post("/folders")
-def add_folder(item: FolderRule):
-    cfg = config.read_config()
-    folders = cfg.setdefault("folders", {})
-    folders.setdefault(item.name, {})[item.file_type] = item.topic_id
-    config.write_config(cfg)
-    return {"status": "success"}
-
-
-@api.delete("/folders/{folder_name:path}")
-def delete_folder(folder_name: str):
-    cfg = config.read_config()
-    if folder_name in cfg.get("folders", {}):
-        del cfg["folders"][folder_name]
-        config.write_config(cfg)
-        return {"status": "success"}
-    raise HTTPException(status_code=404, detail="Not found")
 
 
 app.include_router(api, prefix="/api", dependencies=[Depends(verify_pin)])

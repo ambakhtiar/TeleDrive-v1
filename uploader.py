@@ -21,15 +21,49 @@ logger = logging.getLogger("uploader")
 
 def _format_metadata(file_name, file_path, stats):
     size_mb = round(stats.st_size / (1024 * 1024), 2)
-    dt_modified = datetime.fromtimestamp(stats.st_mtime).strftime("%d %b %Y, %I:%M %p")
+    created = datetime.fromtimestamp(original_timestamp(file_path, stats))
+    dt_created = created.strftime("%d %b %Y, %I:%M %p")
     ext = os.path.splitext(file_name)[1]
     hashtag = f"#{ext[1:].lower()}" if ext else "#unknown"
-    caption = f"📄 **{file_name}**\n\n💾 **Size:** {size_mb} MB\n📅 **Date:** {dt_modified}"
+    caption = f"📄 **{file_name}**\n\n💾 **Size:** {size_mb} MB\n📅 **Created:** {dt_created}"
     device = _get_device_info(file_path)
     if device:
         caption += f"\n📱 **Device:** {device}"
     caption += f"\n\n🏷️ {hashtag}"
     return caption
+
+
+def original_timestamp(file_path, stats):
+    """Best guess at when the file was *created*, not last touched.
+
+    Prefers EXIF DateTimeOriginal for photos, then filesystem creation time
+    (st_ctime on Windows / st_birthtime on macOS), then modification time.
+    """
+    ext = os.path.splitext(file_path)[1].lower()
+    if ext in (".jpg", ".jpeg", ".png", ".webp", ".tiff"):
+        try:
+            from PIL import Image, ExifTags
+            with Image.open(file_path) as img:
+                exif = img.getexif()
+                for tag_id, value in exif.items():
+                    if ExifTags.TAGS.get(tag_id) in ("DateTimeOriginal", "DateTime"):
+                        return datetime.strptime(str(value), "%Y:%m:%d %H:%M:%S").timestamp()
+        except Exception:
+            pass
+    birth = getattr(stats, "st_birthtime", None)
+    candidates = [t for t in (birth, stats.st_ctime, stats.st_mtime) if t]
+    return min(candidates) if candidates else stats.st_mtime
+
+
+def _fmt_duration(seconds):
+    seconds = max(0, int(round(seconds)))
+    if seconds < 60:
+        return f"{seconds}s"
+    m, s = divmod(seconds, 60)
+    if m < 60:
+        return f"{m}m {s}s"
+    h, m = divmod(m, 60)
+    return f"{h}h {m}m"
 
 
 def _get_device_info(file_path):
@@ -181,7 +215,7 @@ class UploaderService:
                                 "path": full_path,
                                 "name": file,
                                 "hash": file_hash,
-                                "mtime": stats.st_mtime,
+                                "mtime": original_timestamp(full_path, stats),
                                 "stats": stats,
                                 "topic_id": int(topic_id),
                             }
@@ -301,11 +335,15 @@ class UploaderService:
                     force_document=not compress_media,
                     progress_callback=progress_callback,
                 )
+                elapsed = time.time() - start_time[0]
                 group_str = str(group_id).replace("-100", "")
-                msg_link = f"https://t.me/c/{group_str}/{item['topic_id']}/{msg.id}"
+                topic_seg = f"/{item['topic_id']}" if item.get("topic_id") else ""
+                msg_link = f"https://t.me/c/{group_str}{topic_seg}/{msg.id}"
                 self.db.mark_uploaded(h, item["name"], item["path"], item["topic_id"], msg_link)
-                self.log(f"✅ [{name}] Done: {item['name']}")
+                self.log(f"✅ [{name}] Done: {item['name']} in {_fmt_duration(elapsed)}")
                 self.emit("uploaded", {"name": item["name"], "link": msg_link,
+                                       "duration": round(elapsed, 1),
+                                       "duration_text": _fmt_duration(elapsed),
                                        "total_uploaded": self.db.total_count()})
                 # Staged (browser-uploaded) files are always removed after send
                 # so the data volume doesn't fill up; local files honor the toggle.
@@ -488,6 +526,7 @@ class UploaderService:
         if not os.path.isdir(path):
             raise ValueError("Path is not an existing directory.")
         added, skipped = 0, 0
+        pending = []
         for root, _, files in os.walk(path):
             rel_root = os.path.relpath(root, path)
             for f in files:
@@ -500,12 +539,16 @@ class UploaderService:
                 if not file_hash or self.db.is_uploaded(file_hash):
                     skipped += 1
                     continue
-                ok = self.enqueue_item({
+                pending.append({
                     "folder_name": path, "path": full, "name": f,
-                    "hash": file_hash, "mtime": stats.st_mtime,
+                    "hash": file_hash, "mtime": original_timestamp(full, stats),
                     "stats": stats, "topic_id": int(topic_id),
                 })
-                added += 1 if ok else 0
+        # Upload oldest-created first so the timeline reads chronologically.
+        pending.sort(key=lambda x: x["mtime"])
+        for item in pending:
+            if self.enqueue_item(item):
+                added += 1
         self.log(f"➕ Queued {added} file(s) from {path} ({skipped} skipped).")
         return {"added": added, "skipped": skipped}
 
@@ -525,21 +568,28 @@ class UploaderService:
 
     # ---------- groups & topics (Phase 2) ----------
     async def list_groups(self):
-        """Groups/supergroups the user can post into."""
+        """Groups/supergroups where the user is the creator or an admin."""
         out = []
         async for d in self.client.iter_dialogs():
             ent = d.entity
             is_group = getattr(d, "is_group", False)
             is_channel = getattr(d, "is_channel", False)
             megagroup = getattr(ent, "megagroup", False)
-            if is_group or (is_channel and megagroup):
-                out.append(
-                    {
-                        "id": d.id,
-                        "title": d.name,
-                        "is_forum": bool(getattr(ent, "forum", False)),
-                    }
-                )
+            if not (is_group or (is_channel and megagroup)):
+                continue
+            # Only groups the user owns or administers.
+            is_creator = bool(getattr(ent, "creator", False))
+            is_admin = getattr(ent, "admin_rights", None) is not None
+            if not (is_creator or is_admin):
+                continue
+            out.append(
+                {
+                    "id": d.id,
+                    "title": d.name,
+                    "is_forum": bool(getattr(ent, "forum", False)),
+                    "role": "owner" if is_creator else "admin",
+                }
+            )
         return out
 
     async def create_group(self, title: str, enable_topics: bool = True):
@@ -571,10 +621,21 @@ class UploaderService:
         self.emit("group", {"group_id": int(group_id)})
         return {"group_id": int(group_id)}
 
+    async def _resolve_entity(self, group_id: int):
+        """Resolve a group entity robustly (falls back to scanning dialogs)."""
+        gid = int(group_id)
+        try:
+            return await self.client.get_entity(gid)
+        except Exception:
+            async for d in self.client.iter_dialogs():
+                if d.id == gid:
+                    return d.entity
+            raise ValueError("Group not found or not accessible.")
+
     async def list_topics(self, group_id: int):
         from telethon.tl import functions
 
-        entity = await self.client.get_entity(int(group_id))
+        entity = await self._resolve_entity(group_id)
         if not getattr(entity, "forum", False):
             return {"is_forum": False, "topics": []}
         res = await self.client(
@@ -582,25 +643,71 @@ class UploaderService:
                 channel=entity, offset_date=0, offset_id=0, offset_topic=0, limit=100
             )
         )
-        topics = [{"id": t.id, "title": t.title} for t in res.topics
-                  if hasattr(t, "title")]
+        topics = []
+        for t in res.topics:
+            # Skip deleted-topic markers; keep real topics.
+            if hasattr(t, "title") and hasattr(t, "id"):
+                topics.append({"id": t.id, "title": t.title})
         return {"is_forum": True, "topics": topics}
 
     async def create_topic(self, group_id: int, title: str):
         from telethon.tl import functions
 
-        entity = await self.client.get_entity(int(group_id))
+        entity = await self._resolve_entity(group_id)
+        if not getattr(entity, "forum", False):
+            # Enable Topics automatically so the created topic works.
+            try:
+                await self.client(
+                    functions.channels.ToggleForumRequest(channel=entity, enabled=True)
+                )
+                entity = await self._resolve_entity(group_id)
+            except Exception as e:
+                raise ValueError(f"Group has no Topics and enabling failed: {e}")
         res = await self.client(
             functions.channels.CreateForumTopicRequest(channel=entity, title=title)
         )
-        # The new topic id is the id of the service message that opened it.
         topic_id = None
         for u in getattr(res, "updates", []):
-            if hasattr(u, "id"):
+            if hasattr(u, "id") and getattr(u, "message", None) is not None:
                 topic_id = u.id
                 break
+        if topic_id is None:
+            for u in getattr(res, "updates", []):
+                if hasattr(u, "id"):
+                    topic_id = u.id
+                    break
         self.log(f"✅ Created topic '{title}' (id={topic_id}).")
         return {"id": topic_id, "title": title}
+
+    async def create_topics_for_folders(self, group_id: int, folder_names: list[str],
+                                        max_topics: int = 30):
+        """Auto-create one topic per folder name; return {name: topic_id}.
+
+        Reuses existing topics with the same title. Caps at max_topics.
+        """
+        existing = {}
+        info = await self.list_topics(group_id)
+        for t in info.get("topics", []):
+            existing[t["title"].lower()] = t["id"]
+        mapping = {}
+        created = 0
+        capped = False
+        for raw in folder_names:
+            name = "General" if raw in (".", "", None) else raw
+            key = name.lower()
+            if key in existing:
+                mapping[raw] = existing[key]
+                continue
+            if created >= max_topics:
+                capped = True
+                continue
+            made = await self.create_topic(group_id, name[:128])
+            if made.get("id"):
+                mapping[raw] = made["id"]
+                existing[key] = made["id"]
+                created += 1
+        return {"mapping": mapping, "created": created, "capped": capped,
+                "max_topics": max_topics}
 
     # ---------- controls ----------
     def set_status(self, status):
