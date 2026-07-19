@@ -155,8 +155,10 @@ class UploaderService:
             self.auth_state = "unauthorized"
             self.log(f"⚠️ Could not reach Telegram yet ({e}). Web UI still available.")
 
+        # NOTE: the legacy auto-watch rescanner is intentionally NOT started.
+        # Uploads are now explicit via "Add Files / Folder" so nothing uploads
+        # by surprise. (self._rescanner_loop remains for optional future use.)
         self._tasks = [
-            asyncio.create_task(self._rescanner_loop()),
             asyncio.create_task(self._daily_report_loop()),
         ]
         for i in range(config.MAX_CONCURRENT_UPLOADS):
@@ -666,14 +668,17 @@ class UploaderService:
         res = await self.client(
             functions.channels.CreateForumTopicRequest(channel=entity, title=title)
         )
+        # A forum topic's id == the id of the service message that opened it,
+        # delivered inside an UpdateNewChannelMessage.
         topic_id = None
         for u in getattr(res, "updates", []):
-            if hasattr(u, "id") and getattr(u, "message", None) is not None:
-                topic_id = u.id
+            msg = getattr(u, "message", None)
+            if msg is not None and hasattr(msg, "id"):
+                topic_id = msg.id
                 break
-        if topic_id is None:
+        if topic_id is None:  # fallback for other update shapes
             for u in getattr(res, "updates", []):
-                if hasattr(u, "id"):
+                if getattr(u, "id", None) is not None:
                     topic_id = u.id
                     break
         self.log(f"✅ Created topic '{title}' (id={topic_id}).")
