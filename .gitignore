@@ -42,3 +42,4 @@ CLAUDE.md
 .cursor/
 .vscode/
 .mcp.json
+.agents/
