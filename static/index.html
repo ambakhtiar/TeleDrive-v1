@@ -87,7 +87,7 @@
     </div>
 
     <div id="main-dashboard" class="card">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
             <h2 style="margin:0;">⚙️ Control Panel <span id="ws-dot" class="ws-dot"></span></h2>
             <button id="logout-btn" onclick="tgLogout()" class="btn" style="display:none;width:auto;background:#fff;border:1px solid #d93025;color:#d93025;padding:8px 14px;">🚪 Logout</button>
         </div>
@@ -136,7 +136,7 @@
                 <b style="color:#d93025;font-size:13px;">⚠️ Failed</b>
                 <button onclick="retryFailed()" class="btn" style="width:auto;background:#d93025;font-size:11px;padding:6px 10px;">🔁 Retry All</button>
             </div>
-            <div id="failed-list" style="font-size:12px;"></div>
+            <div id="failed-list" style="font-size:12px;max-height:140px;overflow-y:auto;background:#fff;border:1px solid #fad2cf;border-radius:6px;padding:4px 8px;"></div>
         </div>
 
         <div class="settings-group">
