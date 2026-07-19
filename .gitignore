@@ -7,11 +7,16 @@ backup_session.session-journal
 uploads.db
 uploader.log
 
-# Dynamic State Files (auto update file)
+# Dynamic State Files (legacy two-process IPC — no longer used)
 progress.json
 queue.json
 state.json
+command.json
 config.json
+send_report.trigger
+
+# Browser-upload staging area
+uploads_staging/
 
 # Python Bytecode (unnecessary cache file)
 __pycache__/
