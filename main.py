@@ -4,6 +4,7 @@ the WebSocket live feed, and serves the dashboard UI.
 Run:  uvicorn main:app --host 0.0.0.0 --port 8000
 """
 import os
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
@@ -180,9 +181,9 @@ class QueueAddItem(BaseModel):
 
 
 @api.post("/scan")
-def scan(item: ScanItem):
+async def scan(item: ScanItem):
     try:
-        return service.scan_path(item.path)
+        return await asyncio.to_thread(service.scan_path, item.path)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -195,7 +196,7 @@ async def queue_add(item: QueueAddItem):
         info = {}
         gid = config.active_group_id()
         if routing.get("mode") == "folder" and routing.get("auto_create"):
-            scan = service.scan_path(item.path)
+            scan = await asyncio.to_thread(service.scan_path, item.path)
             names = [s["name"] for s in scan["subfolders"]]
             res = await service.create_topics_for_folders(gid, names)
             routing["folder_map"] = res["mapping"]
@@ -203,14 +204,15 @@ async def queue_add(item: QueueAddItem):
             info = {"topics_created": res["created"], "capped": res["capped"],
                     "max_topics": res["max_topics"]}
         elif routing.get("mode") == "extension" and routing.get("auto_create"):
-            scan = service.scan_path(item.path)
+            scan = await asyncio.to_thread(service.scan_path, item.path)
             present = {config.file_type_for("x" + e["ext"]) for e in scan["extensions"]}
             labels = {"image": "Images", "video": "Videos", "other": "Other"}
             wanted = [labels[t] for t in present]
             res = await service.create_topics_for_folders(gid, wanted)
             routing["ext_map"] = {t: res["mapping"].get(labels[t]) for t in present}
             info = {"topics_created": res["created"]}
-        result = service.enqueue_path(item.path, routing)
+        # enqueue_path walks + hashes every file — keep it off the event loop.
+        result = await asyncio.to_thread(service.enqueue_path, item.path, routing)
         result.update(info)
         return result
     except Exception as e:

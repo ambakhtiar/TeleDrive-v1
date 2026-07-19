@@ -43,6 +43,9 @@
         .login-box{text-align:center;max-width:320px;}
         .login-input{font-size:24px;letter-spacing:5px;text-align:center;font-weight:bold;}
         #toast{position:fixed;bottom:-100px;left:50%;transform:translateX(-50%);color:#fff;padding:12px 24px;border-radius:8px;font-weight:bold;font-size:13px;z-index:9999;transition:bottom .4s;box-shadow:0 4px 12px rgba(0,0,0,.2);}
+        .spin{display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertical-align:middle;}
+        @keyframes sp{to{transform:rotate(360deg);}}
+        button:disabled{opacity:.7;cursor:progress;}
         #main-dashboard{display:block;} .ws-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#d93025;margin-left:6px;} .ws-dot.on{background:#1e8e3e;}
     </style>
 </head>
@@ -309,7 +312,9 @@ function addTab(m){ addMode=m;
 function doScan(){
     const path=document.getElementById('scan-path').value.trim();
     if(!path){ showToast('Enter a path',true); return; }
-    tgHandle('/api/scan',{path}).then(d=>{
+    const sb=document.querySelector('#pane-local .btn-add'); if(sb){ sb.disabled=true; sb.innerHTML='<span class="spin"></span> Scanning…'; }
+    const reset=()=>{ if(sb){ sb.disabled=false; sb.innerHTML='🔍 Scan'; } };
+    tgHandle('/api/scan',{path}).finally(reset).then(d=>{
         scanData=d;
         const sz=fmtBytes(d.total_size);
         document.getElementById('scan-result').style.display='block';
@@ -361,17 +366,22 @@ function buildRouting(){
     if(mode==='extension'){ return {mode:'extension', auto_create:true}; }
     return {mode:'folder', auto_create:true};
 }
+function setAddBusy(busy, label){
+    const btn=document.getElementById('add-submit');
+    btn.disabled=busy;
+    btn.innerHTML = busy ? `<span class="spin"></span> ${label||'Working…'}` : 'Add to Queue';
+}
 function submitAdd(){
     const routing=buildRouting();
     if(addMode==='local'){
         const path=document.getElementById('scan-path').value.trim();
         if(!path){ showToast('Scan a path first',true); return; }
-        showToast('⏳ Queuing…');
+        setAddBusy(true,'Scanning & queuing…');
         tgHandle('/api/queue/add',{path,routing}).then(r=>{
             let msg=`➕ Queued ${r.added}`+(r.skipped?` (skipped ${r.skipped})`:'');
             if(r.topics_created) msg+=` · created ${r.topics_created} topic(s)`;
             showToast(msg); closeModal('add-modal');
-        }).catch(e=>showToast(e.message,true));
+        }).catch(e=>showToast(e.message,true)).finally(()=>setAddBusy(false));
     } else {
         uploadFromDevice(routing);
     }
@@ -392,7 +402,7 @@ async function uploadFromDevice(routing){
         catch(e){ showToast(e.message,true); return; }
     }
     const total=pickedFiles.length; let done=0, ok=0;
-    const btn=document.getElementById('add-submit'); btn.disabled=true;
+    setAddBusy(true, `Uploading 0/${total}…`);
     for(const f of pickedFiles){
         const rel=f.webkitRelativePath||f.name;
         let topic=0;
@@ -404,9 +414,9 @@ async function uploadFromDevice(routing){
             const r=await fetch('/api/upload',{method:'POST',body:fd});
             const j=await r.json(); if(r.ok && j.queued) ok++;
         }catch(e){ /* keep going */ }
-        done++; btn.innerText=`Uploading ${done}/${total}…`;
+        done++; setAddBusy(true, `Uploading ${done}/${total}…`);
     }
-    btn.disabled=false; btn.innerText='Add to Queue';
+    setAddBusy(false);
     showToast(`⬆️ Sent ${ok}/${total} to the queue`); closeModal('add-modal');
 }
 // file/folder pickers + drag-drop
