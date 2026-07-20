@@ -97,6 +97,7 @@ class UploaderBase:
         # by surprise.
         self._tasks = [
             asyncio.create_task(self._daily_report_loop()),
+            asyncio.create_task(self._startup_maintenance()),
         ]
         for i in range(config.MAX_CONCURRENT_UPLOADS):
             self._tasks.append(asyncio.create_task(self._upload_worker(f"Worker-{i+1}")))

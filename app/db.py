@@ -85,6 +85,21 @@ class Database:
                 self.conn.commit()
         return updated
 
+    def rows_missing_size(self):
+        """(file_hash, message_id) for downloadable rows that have no size yet."""
+        with self._lock:
+            return self.conn.execute(
+                "SELECT file_hash, message_id FROM uploads "
+                "WHERE message_id IS NOT NULL AND (size IS NULL OR size=0)"
+            ).fetchall()
+
+    def set_size(self, file_hash, size):
+        with self._lock:
+            self.conn.execute(
+                "UPDATE uploads SET size=? WHERE file_hash=?", (size, file_hash)
+            )
+            self.conn.commit()
+
     def total_count(self):
         with self._lock:
             return self.conn.execute("SELECT COUNT(*) FROM uploads").fetchone()[0]
