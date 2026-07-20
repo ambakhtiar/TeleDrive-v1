@@ -1,0 +1,28 @@
+# Fly.io configuration for the Telegram Uploader (single-user-per-deploy).
+# Rename "app" to something unique before first deploy, or let `fly launch` set it.
+
+app = "telegram-uploader"
+primary_region = "sin"   # Singapore — pick the region closest to you
+
+[build]
+
+[env]
+  DATA_DIR = "/data"
+  # SCAN_ROOT defaults to /data on cloud (no phone storage there); browser
+  # upload is the main path for cloud use. Override if you mount media.
+  SCAN_ROOT = "/data"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = "suspend"   # keep session/DB warm; suspend when idle
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[mounts]]
+  source = "tgb_data"
+  destination = "/data"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

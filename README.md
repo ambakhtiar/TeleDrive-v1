@@ -1,91 +1,230 @@
-# 🚀 Telegram Smart Auto-Uploader
+# ✈️ Telegram Uploader
 
-A powerful, fully automated, and secure background bot that syncs your local device files to Telegram Topics. It comes with a beautiful Web Dashboard for easy control and monitoring!
+A self-hosted web app that uploads your files to a Telegram group — organized into **Topics** automatically, with live progress, smart routing, and a clean web dashboard. Point it at a folder (or drag files from your device), pick how you want them sorted, and it takes care of the rest: hashing to skip duplicates, retrying failures, and reporting daily upload stats straight to Telegram.
+
+No terminal login, no manual topic-ID lookups — everything is driven from the browser.
 
 ---
 
 ## ✨ Features
 
-- **🌐 Web Control Panel:** Manage everything from a beautiful, responsive web dashboard.
-- **🗂️ Smart Routing:** Automatically send Images to one topic and Videos to another topic from the same folder.
-- **🗑️ Auto-Delete (Danger Zone):** Automatically delete files from local storage after a successful upload to save phone memory.
-- **🖥️ Live Console:** Watch live terminal logs directly from your browser.
-- **🔍 Full History & Search:** Infinite scroll history with instant search functionality.
-- **🔒 Secure Access:** PIN-protected dashboard to ensure privacy on your network.
+**Telegram connection**
+- Web-based login: phone number → OTP → 2FA password (if enabled). No interactive terminal session needed.
+- Session persists on the server; reconnect/disconnect from the dashboard anytime.
+
+**Groups & Topics**
+- Create a brand-new Telegram group (Topics auto-enabled) or select one you already own/administer — only groups where you have admin rights are shown.
+- Create and list topics from the UI; no need to look up topic IDs by hand.
+
+**Adding files**
+- **Local path scan** — type a folder path on the server/device; it recursively scans nested folders and previews file counts, sizes, and extensions before queuing.
+- **Upload from device** — pick files, pick a whole folder, or drag-and-drop straight into the browser (works from a phone or a different machine than the server).
+
+**Smart routing — three modes**
+| Mode | Behavior |
+|---|---|
+| **Single topic** | Everything goes to one topic (or General). |
+| **By file type** *(recommended)* | Sorts into 8 auto-created/reused topics: 🖼️ Images, 🎬 Videos, 🎵 Audios, 📄 Documents, 💻 Coding, 🗜️ Compressed, ⚙️ Programme, 📦 Others. |
+| **By folder name** | Each subfolder gets its own topic, auto-created and reused on repeat runs (capped at 30 topics per group, with a warning if exceeded). |
+
+**Uploading**
+- Parallel ("Turbo") uploads, or one-at-a-time — your choice.
+- Live per-file progress: percentage, speed, bytes transferred, and **estimated time remaining**.
+- Cancel an individual in-flight file, clear the whole queue, or retry everything that failed — all without restarting the app.
+- Automatic de-duplication — a file already uploaded (by content hash) is never sent twice.
+- Optional auto-delete of local files after a successful upload.
+- Optional media compression (trade quality for upload speed).
+
+**Monitoring & history**
+- Live console — tail the server log directly in the browser (WebSocket-powered, no polling/refresh).
+- Dedicated **History** page: search by name, filter by extension or date range, sort newest/oldest, infinite-scroll pagination, and CSV export of exactly what you're viewing.
+- Daily automatic report to your Telegram group (upload count for the day) — or trigger one manually.
 
 ---
 
-## ⚙️ How to Get Telegram API ID & Hash
+## 📋 Requirements
 
-Before starting, you need your API credentials from Telegram:
+- **Python 3.10+** (3.11 recommended)
+- A **Telegram account** and API credentials (free — see below)
+- A **Telegram group you own or administer** (the app will offer to create one for you if you don't have one yet)
+- pip packages — all pinned in [requirements.txt](requirements.txt): FastAPI, Uvicorn, Telethon, python-dotenv, Pydantic, python-multipart, Pillow
+
+---
+
+## 🔑 Get your Telegram API credentials
+
 1. Go to [my.telegram.org](https://my.telegram.org) and log in with your phone number.
-2. Click on **"API development tools"**.
-3. Fill in the basic details (App title, short name) and click **"Create application"**.
-4. Save your **App api_id** and **App api_hash** safely.
+2. Click **API development tools**.
+3. Fill in an app title and short name, then **Create application**.
+4. Copy the **App api_id** and **App api_hash** — you'll need these next.
 
 ---
 
-## 🛠️ Installation & Setup (Termux / Android)
+## 🛠️ Installation
 
-### Step 1: Install Prerequisites
-Open Termux and run the following commands:
+Pick the section that matches where you're running this.
+
+### Option A — Termux (Android phone)
+
+> **Docker will not run in Termux.** Android doesn't expose the kernel features (cgroups/namespaces) Docker needs, even with root in most cases. On a phone, always run the app directly with Python as shown below — Docker is only for Option C (a real computer/server).
+
 ```bash
 pkg update && pkg upgrade -y
-pkg install python git rust binutils clang make libffi openssl -y
+pkg install python git -y
 
+# Let Termux access your phone's shared storage (needed for local-path scanning)
+termux-setup-storage
+
+git clone <your-repo-url>
+cd tgb
+
+pip install -r requirements.txt
 ```
-### Step 2: Clone the Repository
+
+### Option B — Windows / macOS / Linux (direct Python)
+
 ```bash
-git clone [https://github.com/ambakhtiar/Telegram-File-Uploading-Bot](https://github.com/ambakhtiar/Telegram-File-Uploading-Bot)
-cd Telegram-File-Uploading-Bot
+# Install Python 3.10+ first: https://www.python.org/downloads/
+git clone <your-repo-url>
+cd tgb
 
+python -m venv venv
+# Windows:
+venv\Scripts\activate
+# macOS/Linux:
+source venv/bin/activate
+
+pip install -r requirements.txt
 ```
-### Step 3: Install Required Python Packages
+
+### Option C — Docker (desktop machines & servers only)
+
+Use this on a PC, Mac, or a real Linux server/VPS — **not** on Termux/Android.
+
 ```bash
-pip install telethon fastapi uvicorn pydantic python-dotenv
-# To boost upload speed, install cryptg (Takes a few minutes):
-pip install cryptg
-
+docker build -t telegram-uploader .
+docker run -d --name tgb -p 8000:8000 \
+  -e API_ID=xxxxxxx -e API_HASH=xxxxxxxxxxxxxxxx \
+  -v tgb_data:/data \
+  telegram-uploader
 ```
-### Step 4: Configure the Environment
-Create a .env file and add your credentials:
+The `-v tgb_data:/data` volume keeps your database and Telegram session across container restarts — without it, you'd have to log in again every time the container recreates.
+
+---
+
+## ⚙️ Configuration
+
+Copy the example env file and fill in your credentials:
+
 ```bash
-nano .env 
-
+cp .env.example .env      # Windows: copy .env.example .env
 ```
-**Paste the following and replace with your data:**
+
 ```env
 API_ID=your_api_id_here
 API_HASH=your_api_hash_here
-GROUP_ID=-100xxxxxxxxxx
-DASHBOARD_PIN=1234
-
 ```
-*(Press CTRL + O, Enter to save, and CTRL + X to exit.)*
-## 🚀 Running the Bot
-You need to run two processes. You can do this by opening two separate sessions (tabs) in Termux.
-### Session 1: Start the Background Engine
+
+This is a **one-time step for whoever deploys the app** — it's never asked of whoever logs in from the browser (they only ever see phone number → OTP → 2FA password). The same `API_ID`/`API_HASH` pair can be reused across as many different phone numbers as you like; a friend can put your same values into their own `.env` instead of registering their own.
+
+Everything else — target group, routing rules, turbo mode, auto-delete, etc. — is configured later from the dashboard and saved automatically. There's nothing else to hand-edit.
+
+---
+
+## 🚀 Running
+
 ```bash
-python bot.py 
-
+uvicorn main:app --host 0.0.0.0 --port 8000
 ```
-*(The first time you run this, it will ask for your Telegram phone number and OTP to authenticate).*
-### Session 2: Start the Web Dashboard
+
+Open **http://localhost:8000** — or, from another device on the same network, `http://<this-machine's-IP>:8000`.
+
+> ⚠️ **No dashboard login.** The web UI has no access control — anyone who can reach the URL has full control of the connected Telegram account. This is fine on `localhost` or a private LAN. **Do not expose this port to the public internet** without adding your own protection in front of it (reverse-proxy basic auth, VPN, Cloudflare Access, etc.).
+
+---
+
+## 🎮 First-time setup walkthrough
+
+1. **Connect Telegram** — the dashboard opens straight to a "Connect Telegram" prompt. Enter your phone number, then the OTP code Telegram sends you, then your 2FA password if you have one enabled. This only happens once; the session is saved on the server.
+2. **🎯 Group & Topics (Setup button)** — either:
+   - **Create a new group** (Topics are enabled automatically), or
+   - **Select an existing group** from the list — only groups where you're the **owner or an admin** are shown.
+   - Create or browse topics right there; no manual ID lookups.
+3. **📥 Add Files / Folder:**
+   - **Local Path** tab — type a path, hit **Scan** to preview what's inside, then choose a routing mode.
+   - **Upload from Device** tab — pick files, pick a folder, or drag-and-drop.
+   - Choose routing: **single topic**, **by file type** (8 categories, auto-created), or **by folder name** (one topic per subfolder, auto-created).
+   - Click **Add to Queue** — it queues in the background and drops you straight back to the dashboard; you don't wait around.
+4. Watch uploads live: percentage, speed, size, and time remaining per file. Cancel, clear the queue, or retry failures as needed.
+5. **🔍 Full History** — its own page with search, extension/date filters, newest/oldest sort, infinite scroll, and filtered CSV export.
+6. **🚪 Logout** (top-right, once connected) disconnects the Telegram session on the server — useful for switching accounts.
+
+---
+
+## ☁️ Cloud deployment (Fly.io)
+
+The repo includes a ready-to-use `Dockerfile` and `fly.toml`.
+
+> This app is currently **single-user-per-deployment**: whoever is logged in controls that deployment's Telegram account. If a friend wants to use it too, they deploy their **own** copy with their **own** API credentials — don't share one deployment.
+
 ```bash
-uvicorn api:app --host 0.0.0.0 --port 8000
+fly auth login
 
+fly launch --no-deploy          # pick a unique app name when prompted
+
+fly volumes create tgb_data --size 1 --region sin    # persists DB + session
+
+fly secrets set API_ID=xxxx API_HASH=xxxx
+
+fly deploy
 ```
-## 🎮 How to Use
- 1. Open your browser and go to http://localhost:8000 (or your phone's local IP, e.g., http://192.168.0.x:8000).
- 2. Enter the **PIN** you set in the .env file.
- 3. In the **"Smart Folders"** section:
-   * Enter a folder path (e.g., /sdcard/DCIM/Camera).
-   * Select the file type (e.g., Images Only).
-   * Enter the **Telegram Topic ID**.
- 4. Click **Add Rule** and watch the magic happen! The bot will instantly queue the files and start uploading.
+
+Fly gives you a public HTTPS URL. On cloud, use the **Upload from Device** tab — the server has no access to your phone's local storage, so "Local Path" scanning only makes sense when self-hosting on the same device your files live on.
+
+Because there's no dashboard login (see the warning above), treat the deployed URL as sensitive, or put your own auth layer in front of it before making it public.
+
+---
+
+## 🤝 Sharing this project with someone else
+
+Send them the **code only** — never these files (all already excluded via `.gitignore`, so a normal `git clone` or `git push` to GitHub is safe by default):
+
+| File | Why it's excluded |
+|---|---|
+| `.env` | Your `API_ID`/`API_HASH` — tied to your developer registration at my.telegram.org; fine to hand to a trusted friend privately, but don't post it publicly |
+| `backup_session.session` | Your **live Telegram login** — equivalent to a password, never share this one under any circumstances |
+| `uploads.db` | Your personal upload history |
+| `uploader.log` | Your activity log |
+
+Your friend clones the repo, creates their own `.env`, and runs their own instance — completely separate process, database, and Telegram session from yours. For the `API_ID`/`API_HASH` in that `.env`, they can either:
+- get their own free pair from [my.telegram.org](https://my.telegram.org) (2 minutes), or
+- reuse the same pair you're using — one `API_ID`/`API_HASH` works for any number of different phone number logins, each in their own separate deployment.
+
+Either way, each person still needs to run their **own copy** of the app — logging in overwrites the one Telegram session a running copy holds.
+
+---
+
+## 🧱 Project layout
+
+| File | Responsibility |
+|---|---|
+| [main.py](main.py) | FastAPI app — REST endpoints, `/ws` WebSocket live feed, serves the UI |
+| [uploader.py](uploader.py) | Telethon client, login flow, group/topic management, async scan/upload workers |
+| [database.py](database.py) | SQLite-backed upload history, dedup, and history/search queries |
+| [config.py](config.py) | Paths, env settings, `config.json` persistence, file-category rules |
+| [static/index.html](static/index.html) | Dashboard UI |
+| [static/history.html](static/history.html) | Upload history page |
+
+---
+
+## 🩹 Troubleshooting
+
+- **"TelegramClient instance cannot be reused after logging out"** — fixed in current code (the client rebuilds itself automatically). If you still see this, restart the app once to pick up the latest code.
+- **Uploads are slow** — install `cryptg` for a large speed boost (`pip install cryptg`); it needs Rust + a C compiler (MSVC Build Tools on Windows) to build, which is why it's commented out by default in `requirements.txt`.
+- **Dashboard stuck on "Connecting…"** — usually a stale browser cache after an update; hard-refresh (Ctrl+F5).
+
+---
 
 ## 📝 License
-This project is for personal use and educational purposes. Use it responsibly. 
 
-
-
+For personal and educational use. Use responsibly, and respect Telegram's Terms of Service.

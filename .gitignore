@@ -7,12 +7,57 @@ backup_session.session-journal
 uploads.db
 uploader.log
 
-# Dynamic State Files (auto update file)
+# Dynamic State Files (legacy two-process IPC — no longer used)
 progress.json
 queue.json
 state.json
+command.json
 config.json
+send_report.trigger
+
+# Browser-upload staging area
+uploads_staging/
 
 # Python Bytecode (unnecessary cache file)
 __pycache__/
 
+
+# Auto-generated agent rules (personalized per developer)
+.brainsync/agent-rules.md
+
+# Auto-generated AI agent exclusions
+.cursorrules
+.clineRules
+.agent/
+.windsurfrules
+.gemini/
+.cline/
+
+AGENT.md
+CLAUDE.md
+.agent-mem/
+
+# Local IDE / tooling (not part of the app)
+.brainsync/
+.cursor/
+.vscode/
+.mcp.json
+.agents/
+
+# Other env files / secrets (keep only .env.example tracked)
+.env.*
+!.env.example
+
+# OS junk
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Python virtual environments
+venv/
+.venv/
+env/
+
+# Editor backups
+*.swp
+*~

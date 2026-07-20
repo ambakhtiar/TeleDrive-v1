@@ -1,0 +1,15 @@
+.git
+__pycache__/
+*.pyc
+.env
+backup_session.session
+backup_session.session-journal
+uploads.db
+uploader.log
+uploads_staging/
+config.json
+state.json
+queue.json
+progress.json
+command.json
+scratch_scan_test/
