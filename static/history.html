@@ -24,14 +24,23 @@
         .fname { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:bold; display:block; }
         .time { font-size:11px; color:#80868b; }
         .msg-link { color:#1a73e8; text-decoration:none; font-weight:bold; font-size:12px; flex-shrink:0; }
+        .row-actions { display:flex; gap:6px; flex-shrink:0; align-items:center; }
+        .act { text-decoration:none; font-size:16px; padding:5px 9px; border-radius:6px; background:#f1f3f4; line-height:1; border:none; cursor:pointer; font-family:inherit; }
+        .act.dl { background:#e6f4ea; }
+        .act:active { opacity:.6; }
+        .act:disabled { opacity:.5; cursor:progress; }
         #list-box { border:1px solid #e8eaed; border-radius:8px; overflow:hidden; min-height:80px; }
         #sentinel { text-align:center; padding:14px; font-size:12px; color:#888; }
         .spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(26,115,232,.3);border-top-color:#1a73e8;border-radius:50%;animation:sp .7s linear infinite;vertical-align:middle;}
         @keyframes sp{to{transform:rotate(360deg);}}
         .empty { text-align:center; color:#888; padding:30px; font-size:13px; }
+        .meta { font-size:11px; color:#80868b; }
+        .size-badge { font-size:11px; color:#5f6368; background:#eef1f4; border-radius:4px; padding:1px 6px; margin-left:6px; }
+        #toast { position:fixed; bottom:-100px; left:50%; transform:translateX(-50%); color:#fff; padding:12px 24px; border-radius:8px; font-weight:bold; font-size:13px; z-index:9999; transition:bottom .4s; box-shadow:0 4px 12px rgba(0,0,0,.2); max-width:90%; text-align:center; }
     </style>
 </head>
 <body>
+    <div id="toast">Notification</div>
     <div class="card">
         <div class="top-bar">
             <h2>📜 Upload History</h2>
@@ -92,8 +101,12 @@ async function loadMore(){
         ul.innerHTML = '<div class="empty">No uploads match these filters.</div>';
     } else {
         ul.insertAdjacentHTML('beforeend', data.map(f=>`
-            <li><div style="min-width:0;"><span class="fname">📄 ${f.name}</span><span class="time">${f.time}</span></div>
-            ${f.link?`<a href="${f.link}" target="_blank" class="msg-link">🔗 Link</a>`:''}</li>`).join(''));
+            <li><div style="min-width:0;"><span class="fname">📄 ${f.name}</span>
+              <span class="meta">${f.time}${f.size?`<span class="size-badge">${fmtSize(f.size)}</span>`:''}</span></div>
+            <div class="row-actions">
+              ${f.downloadable?`<button class="act dl" title="Download" onclick="doDownload('${f.hash}', this)">⬇️</button>`:''}
+              ${f.link?`<a href="${f.link}" target="_blank" class="act" title="Open in Telegram">🔗</a>`:''}
+            </div></li>`).join(''));
     }
     if(data.length<20){ done=true; document.getElementById('sentinel').innerText = offset+data.length>0 ? 'End of results.' : ''; }
     else { document.getElementById('sentinel').innerText=''; }
@@ -101,10 +114,41 @@ async function loadMore(){
     loading=false;
 }
 
-document.getElementById('list-box').parentElement; // no-op, keep structure
 window.addEventListener('scroll', ()=>{
     if(window.innerHeight+window.scrollY >= document.body.offsetHeight-200) loadMore();
 });
+
+// <1MB → KB, <1GB → MB, else GB
+function fmtSize(b){
+    if(!b || b<=0) return '';
+    const KB=1024, MB=1048576, GB=1073741824;
+    if(b < MB) return (b/KB).toFixed(0)+' KB';
+    if(b < GB) return (b/MB).toFixed(1)+' MB';
+    return (b/GB).toFixed(2)+' GB';
+}
+
+let toastTimer;
+function showToast(msg, danger=false){
+    const t=document.getElementById('toast');
+    t.innerText=msg; t.style.background=danger?'#d93025':'#1e8e3e'; t.style.bottom='24px';
+    clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.style.bottom='-100px', 4000);
+}
+
+// Pre-check before download so failures show a toast instead of a raw JSON page.
+async function doDownload(hash, btn){
+    if(btn) btn.disabled = true;
+    try{
+        const r = await fetch(`/api/download/${hash}/check`);
+        const j = await r.json();
+        if(!r.ok) throw new Error(j.detail || 'Download failed');
+        showToast('⬇️ Starting download…');
+        window.location = `/api/download/${hash}`;   // browser streams it
+    }catch(e){
+        showToast('❌ '+e.message, true);
+    }finally{
+        setTimeout(()=>{ if(btn) btn.disabled=false; }, 800);
+    }
+}
 
 function clearFilters(){
     document.getElementById('f-query').value='';

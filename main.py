@@ -280,6 +280,35 @@ def history_extensions():
     return service.db.distinct_extensions()
 
 
+@api.get("/download/{file_hash}/check")
+async def download_precheck(file_hash: str):
+    try:
+        return await service.download_check(file_hash)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@api.get("/download/{file_hash}")
+async def download(file_hash: str):
+    from fastapi.responses import StreamingResponse
+    from urllib.parse import quote
+
+    try:
+        file_name, stream = await service.download_file(file_hash)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    ascii_name = file_name.encode("ascii", "ignore").decode() or "download"
+    disposition = (
+        f"attachment; filename=\"{ascii_name}\"; "
+        f"filename*=UTF-8''{quote(file_name)}"
+    )
+    return StreamingResponse(
+        stream,
+        media_type="application/octet-stream",
+        headers={"Content-Disposition": disposition},
+    )
+
+
 @api.get("/daily_reports")
 def daily_reports():
     return service.db.daily_reports()

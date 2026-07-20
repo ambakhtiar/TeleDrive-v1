@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 from telethon import TelegramClient, errors
 
 import config
-from database import Database, generate_file_hash
+from database import Database, generate_file_hash, file_sha256
 
 logger = logging.getLogger("uploader")
 
@@ -356,7 +356,16 @@ class UploaderService:
                 group_str = str(group_id).replace("-100", "")
                 topic_seg = f"/{item['topic_id']}" if item.get("topic_id") else ""
                 msg_link = f"https://t.me/c/{group_str}{topic_seg}/{msg.id}"
-                self.db.mark_uploaded(h, item["name"], item["path"], item["topic_id"], msg_link)
+                # Content hash + size for integrity / download-back (F1).
+                try:
+                    file_size = item["stats"].st_size
+                    file_sha = await asyncio.to_thread(file_sha256, item["path"])
+                except Exception:
+                    file_size, file_sha = None, None
+                self.db.mark_uploaded(
+                    h, item["name"], item["path"], item["topic_id"], msg_link,
+                    message_id=msg.id, size=file_size, sha256=file_sha,
+                )
                 self.log(f"✅ [{name}] Done: {item['name']} in {_fmt_duration(elapsed)}")
                 self.emit("uploaded", {"name": item["name"], "link": msg_link,
                                        "duration": round(elapsed, 1),
@@ -663,6 +672,53 @@ class UploaderService:
                 if d.id == gid:
                     return d.entity
             raise ValueError("Group not found or not accessible.")
+
+    # ---------- download / restore (F2) ----------
+    async def download_check(self, file_hash: str):
+        """Cheap pre-flight before a browser download: confirms the file can
+        actually be fetched, so the UI can show a clean error instead of the
+        browser navigating to a raw JSON error page."""
+        rec = self.db.get_upload(file_hash)
+        if not rec:
+            raise ValueError("File not found in history.")
+        if not rec.get("message_id"):
+            raise ValueError("This older upload has no stored message id — open its Telegram link instead.")
+        if self.auth_state != "authorized":
+            raise ValueError("Not connected to Telegram. Log in first.")
+        entity = await self._resolve_entity(config.active_group_id())
+        msg = await self.client.get_messages(entity, ids=int(rec["message_id"]))
+        if not msg or not getattr(msg, "media", None):
+            raise ValueError("This file is no longer available in Telegram (the message was deleted).")
+        return {"ok": True, "name": rec["file_name"], "size": rec.get("size")}
+
+    async def download_file(self, file_hash: str):
+        """Yield (file_name, async_byte_iterator) for a stored upload.
+
+        Fetches the original message by id and streams its media back. Raises
+        ValueError with a clear message if the file can't be restored.
+        """
+        rec = self.db.get_upload(file_hash)
+        if not rec:
+            raise ValueError("File not found in history.")
+        if not rec.get("message_id"):
+            raise ValueError(
+                "This older upload has no stored message id, so it can't be "
+                "downloaded through the app. Open its Telegram link instead."
+            )
+        if self.auth_state != "authorized":
+            raise ValueError("Log in to Telegram first.")
+
+        group_id = config.active_group_id()
+        entity = await self._resolve_entity(group_id)
+        msg = await self.client.get_messages(entity, ids=int(rec["message_id"]))
+        if not msg or not getattr(msg, "media", None):
+            raise ValueError("The original message no longer exists in Telegram.")
+
+        async def stream():
+            async for chunk in self.client.iter_download(msg.media):
+                yield chunk
+
+        return rec["file_name"], stream()
 
     async def list_topics(self, group_id: int):
         from telethon.tl import functions

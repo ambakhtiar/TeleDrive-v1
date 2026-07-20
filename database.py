@@ -14,11 +14,19 @@ class Database:
             (file_hash TEXT PRIMARY KEY, file_name TEXT, file_path TEXT,
              topic_id INTEGER, uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"""
         )
-        try:
-            self.conn.execute("ALTER TABLE uploads ADD COLUMN message_link TEXT")
-        except sqlite3.OperationalError:
-            pass
+        # Additive schema migrations (safe to run every startup).
+        for col, decl in (
+            ("message_link", "TEXT"),
+            ("message_id", "INTEGER"),
+            ("size", "INTEGER"),
+            ("sha256", "TEXT"),
+        ):
+            try:
+                self.conn.execute(f"ALTER TABLE uploads ADD COLUMN {col} {decl}")
+            except sqlite3.OperationalError:
+                pass
         self.conn.commit()
+        self.backfill_message_ids()
 
     def is_uploaded(self, file_hash):
         with self._lock:
@@ -28,15 +36,54 @@ class Database:
                 ).fetchone()
             )
 
-    def mark_uploaded(self, file_hash, file_name, file_path, topic_id, message_link=None):
+    def mark_uploaded(self, file_hash, file_name, file_path, topic_id,
+                      message_link=None, message_id=None, size=None, sha256=None):
         with self._lock:
             self.conn.execute(
                 "INSERT OR REPLACE INTO uploads "
-                "(file_hash, file_name, file_path, topic_id, message_link) "
-                "VALUES (?,?,?,?,?)",
-                (file_hash, file_name, file_path, topic_id, message_link),
+                "(file_hash, file_name, file_path, topic_id, message_link, "
+                " message_id, size, sha256) VALUES (?,?,?,?,?,?,?,?)",
+                (file_hash, file_name, file_path, topic_id, message_link,
+                 message_id, size, sha256),
             )
             self.conn.commit()
+
+    def get_upload(self, file_hash):
+        """Full row for a single upload (used by download/restore)."""
+        with self._lock:
+            row = self.conn.execute(
+                "SELECT file_hash, file_name, file_path, topic_id, message_link, "
+                "message_id, size, sha256 FROM uploads WHERE file_hash=?",
+                (file_hash,),
+            ).fetchone()
+        if not row:
+            return None
+        keys = ["file_hash", "file_name", "file_path", "topic_id", "message_link",
+                "message_id", "size", "sha256"]
+        return dict(zip(keys, row))
+
+    def backfill_message_ids(self):
+        """Populate message_id for old rows from the trailing id in message_link
+        (…/c/<gid>/<topic>/<msg_id>). Runs once; cheap no-op after that."""
+        with self._lock:
+            rows = self.conn.execute(
+                "SELECT file_hash, message_link FROM uploads "
+                "WHERE message_id IS NULL AND message_link IS NOT NULL"
+            ).fetchall()
+            updated = 0
+            for file_hash, link in rows:
+                try:
+                    mid = int(str(link).rstrip("/").split("/")[-1])
+                except (ValueError, AttributeError, IndexError):
+                    continue
+                self.conn.execute(
+                    "UPDATE uploads SET message_id=? WHERE file_hash=?",
+                    (mid, file_hash),
+                )
+                updated += 1
+            if updated:
+                self.conn.commit()
+        return updated
 
     def total_count(self):
         with self._lock:
@@ -68,11 +115,12 @@ class Database:
             params.append(date_to)
         where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
         order = "ASC" if str(sort).lower() == "asc" else "DESC"
-        sql = (f"SELECT file_name, uploaded_at, message_link FROM uploads "
-               f"{where} ORDER BY uploaded_at {order} LIMIT ? OFFSET ?")
+        sql = (f"SELECT file_name, uploaded_at, message_link, file_hash, message_id, "
+               f"size FROM uploads {where} ORDER BY uploaded_at {order} LIMIT ? OFFSET ?")
         with self._lock:
             rows = self.conn.execute(sql, (*params, limit, offset)).fetchall()
-        return [{"name": r[0], "time": r[1], "link": r[2]} for r in rows]
+        return [{"name": r[0], "time": r[1], "link": r[2], "hash": r[3],
+                 "downloadable": r[4] is not None, "size": r[5]} for r in rows]
 
     def distinct_extensions(self):
         with self._lock:
@@ -116,3 +164,15 @@ def generate_file_hash(file_path):
         return digest, stats
     except Exception:
         return None, None
+
+
+def file_sha256(file_path, chunk=1024 * 1024):
+    """Streaming content hash for integrity verification."""
+    h = hashlib.sha256()
+    with open(file_path, "rb") as f:
+        while True:
+            block = f.read(chunk)
+            if not block:
+                break
+            h.update(block)
+    return h.hexdigest()
