@@ -10,7 +10,10 @@ import threading
 
 from dotenv import load_dotenv
 
-PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
+# Repo root = the directory that CONTAINS this ``app`` package, so .env, the
+# SQLite DB, session file, and static/ all live at the project root — not
+# inside app/.
+PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 load_dotenv(os.path.join(PROJECT_DIR, ".env"))
 
 # ---- Credentials / deploy-time settings (env) ----

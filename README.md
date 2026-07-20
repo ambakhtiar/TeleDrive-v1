@@ -206,14 +206,32 @@ Either way, each person still needs to run their **own copy** of the app — log
 
 ## 🧱 Project layout
 
-| File | Responsibility |
-|---|---|
-| [main.py](main.py) | FastAPI app — REST endpoints, `/ws` WebSocket live feed, serves the UI |
-| [uploader.py](uploader.py) | Telethon client, login flow, group/topic management, async scan/upload workers |
-| [database.py](database.py) | SQLite-backed upload history, dedup, and history/search queries |
-| [config.py](config.py) | Paths, env settings, `config.json` persistence, file-category rules |
-| [static/index.html](static/index.html) | Dashboard UI |
-| [static/history.html](static/history.html) | Upload history page |
+The app is a Python package under `app/`, organized so each feature is easy to find. `main.py` at the root is just a thin entry point (`from app.server import app`) kept so `uvicorn main:app` and the Docker/Fly configs work unchanged.
+
+```
+main.py                      # entry point (re-exports app.server:app)
+app/
+  config.py                  # settings, paths, file-type categories
+  db.py                      # SQLite persistence, hashing helpers
+  server.py                  # FastAPI app, lifespan, WebSocket, CSV export, UI
+  deps.py                    # shared service handle, auth guard, request models
+  services/                  # the UploaderService, split by feature
+    base.py                  #   shared state, events, client lifecycle, start/stop
+    auth.py                  #   phone/OTP/2FA login, logout
+    groups.py                #   groups & topics
+    scanning.py              #   folder scan, routing, enqueue
+    uploading.py             #   upload workers, per-file upload, queue controls
+    downloading.py           #   download / restore
+    reports.py               #   daily/manual reports
+    helpers.py               #   metadata, EXIF date, formatting
+  api/                       # FastAPI routers, one module per feature area
+    auth.py  groups.py  uploads.py  history.py  system.py
+static/
+  index.html                 # dashboard UI
+  history.html               # upload history page
+```
+
+To find a feature's code: look in `app/services/<feature>.py` for the logic and `app/api/<feature>.py` for its HTTP endpoints.
 
 ---
 
