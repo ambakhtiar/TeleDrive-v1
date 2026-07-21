@@ -1088,9 +1088,16 @@
 
         let progressCache = {};
         let queuedCache = [];
+        let _renderTimer = null;
         function renderProgress(p) {
             progressCache[p.hash] = p;
-            renderUploads();
+            scheduleRenderUploads();
+        }
+        // Coalesce the frequent progress-tick re-renders so the button DOM
+        // isn't torn down mid-click (which made pause/cancel need many taps).
+        function scheduleRenderUploads() {
+            if (_renderTimer) return;
+            _renderTimer = setTimeout(() => { _renderTimer = null; renderUploads(); }, 350);
         }
         function renderUploads() {
             const box = document.getElementById('progress-list');
@@ -1106,8 +1113,8 @@
             <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;">
                 <div class="file-name" style="margin:0;min-width:0;overflow:hidden;text-overflow:ellipsis;">⬆️ ${p.file_name}</div>
                 <span style="flex-shrink:0;">
-                    <button onclick="pauseItem('${p.hash}')" title="Pause" class="qbtn">⏸️</button>
-                    <button onclick="cancelItem('${p.hash}')" title="Cancel" class="qbtn">✖️</button>
+                    <button data-act="pause" data-h="${p.hash}" title="Pause" class="qbtn">⏸️</button>
+                    <button data-act="cancel" data-h="${p.hash}" title="Cancel" class="qbtn">✖️</button>
                 </span>
             </div>
             <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${p.percentage}%;"></div></div>
@@ -1125,17 +1132,27 @@
                 const paused = q.state === 'paused';
                 const badge = paused ? '⏸️ Paused' : '⏳ Queued';
                 const toggle = paused
-                    ? `<button onclick="resumeItem('${q.hash}')" title="Resume" class="qbtn">▶️</button>`
-                    : `<button onclick="pauseItem('${q.hash}')" title="Pause" class="qbtn">⏸️</button>`;
+                    ? `<button data-act="resume" data-h="${q.hash}" title="Resume" class="qbtn">▶️</button>`
+                    : `<button data-act="pause" data-h="${q.hash}" title="Pause" class="qbtn">⏸️</button>`;
                 return `<div class="queue-item">
                     <span class="file-name" style="margin:0;min-width:0;overflow:hidden;text-overflow:ellipsis;">📄 ${q.name}</span>
                     <span style="flex-shrink:0;display:flex;align-items:center;gap:6px;">
                         <span class="qstate">${badge}</span>${toggle}
-                        <button onclick="cancelItem('${q.hash}')" title="Cancel" class="qbtn">✖️</button>
+                        <button data-act="cancel" data-h="${q.hash}" title="Cancel" class="qbtn">✖️</button>
                     </span></div>`;
             }).join('');
             box.innerHTML = activeHtml + waitHtml;
         }
+        // One delegated listener on the stable container — survives every
+        // re-render, so a click is never lost to a mid-render DOM swap.
+        document.getElementById('progress-list').addEventListener('click', (e) => {
+            const b = e.target.closest('button[data-act]');
+            if (!b) return;
+            const h = b.dataset.h, act = b.dataset.act;
+            if (act === 'pause') pauseItem(h);
+            else if (act === 'resume') resumeItem(h);
+            else if (act === 'cancel') cancelItem(h);
+        });
         function renderFailed(items) {
             const box = document.getElementById('failed-box');
             if (!items.length) { box.style.display = 'none'; return; }
@@ -1143,9 +1160,29 @@
             document.getElementById('failed-list').innerHTML = items.map(f =>
                 `<div style="padding:4px 0;border-bottom:1px solid #fad2cf;">📄 ${f.name}<br><span style="color:#a52714;font-size:11px;">${(f.error || '').slice(0, 80)}</span></div>`).join('');
         }
-        function cancelItem(h) { apiFetch('/api/queue/cancel/' + h, { method: 'POST' }).then(() => setTimeout(refreshSnapshot, 300)); showToast('🚫 Cancelling…'); }
-        function pauseItem(h) { apiFetch('/api/queue/pause/' + h, { method: 'POST' }).then(() => setTimeout(refreshSnapshot, 300)); }
-        function resumeItem(h) { apiFetch('/api/queue/resume/' + h, { method: 'POST' }).then(() => setTimeout(refreshSnapshot, 300)); }
+        function _setQueuedState(h, state) {
+            const q = queuedCache.find(x => x.hash === h);
+            if (q) q.state = state;
+        }
+        function cancelItem(h) {
+            // optimistic: drop it from the local view immediately
+            delete progressCache[h];
+            queuedCache = queuedCache.filter(x => x.hash !== h);
+            renderUploads();
+            showToast('🚫 Cancelling…');
+            apiFetch('/api/queue/cancel/' + h, { method: 'POST' }).then(() => setTimeout(refreshSnapshot, 500));
+        }
+        function pauseItem(h) {
+            _setQueuedState(h, 'paused');
+            delete progressCache[h];   // stop showing the live bar
+            renderUploads();
+            apiFetch('/api/queue/pause/' + h, { method: 'POST' }).then(() => setTimeout(refreshSnapshot, 500));
+        }
+        function resumeItem(h) {
+            _setQueuedState(h, 'pending');
+            renderUploads();
+            apiFetch('/api/queue/resume/' + h, { method: 'POST' }).then(() => setTimeout(refreshSnapshot, 500));
+        }
         function clearQueue() { showConfirm('Clear the queue?', 'Remove all queued files that have not started uploading yet.', 'Clear', '#5f6368', () => { apiFetch('/api/queue/clear', { method: 'POST' }).then(r => showToast(`🧹 Cleared ${r.cleared}`)); }); }
         function retryFailed() { apiFetch('/api/queue/retry_failed', { method: 'POST' }).then(r => showToast(`🔁 Re-queued ${r.requeued}`)); }
 

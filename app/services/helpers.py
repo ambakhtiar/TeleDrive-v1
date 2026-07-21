@@ -106,15 +106,16 @@ _ROOT_JUNK = {"", ".", "..", "c:", "d:", "e:", "f:", "storage", "emulated",
 
 def _sanitize_tag(part):
     """Turn a folder name into a clean hashtag token: keep letters/digits,
-    collapse everything else to a single underscore. 'New York (2)' → New_York_2."""
-    token = re.sub(r"[^0-9A-Za-z]+", "_", part).strip("_")
+    strip spaces, collapse other separators to a single underscore.
+    'New York (2)' → NewYork_2."""
+    token = re.sub(r"[^0-9A-Za-z]+", "_", part.replace(" ", "")).strip("_")
     return token
 
 
 def folder_hashtags(rel_path):
     """Build folder hashtags from a relative path, consistently for every
     upload mode. Returns e.g. for 'DCIM/Images/2026/New York':
-      ['#DCIM', '#Images', '#2026', '#New_York', '#DCIM_Images_2026_New_York']
+      ['#DCIM', '#Images', '#2026', '#NewYork', '#DCIM_Images_2026_NewYork']
     (per-level tags + one combined path tag). Drive/system roots are dropped."""
     if not rel_path:
         return []
