@@ -20,7 +20,7 @@ primary_region = "sin"   # Singapore — pick the region closest to you
   min_machines_running = 0
 
 [[mounts]]
-  source = "tgb_data"
+  source = "TeleDrive-v1_data"
   destination = "/data"
 
 [[vm]]

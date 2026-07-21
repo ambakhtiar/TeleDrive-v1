@@ -75,8 +75,8 @@ pkg install python git -y
 # Let Termux access your phone's shared storage (needed for local-path scanning)
 termux-setup-storage
 
-git clone <your-repo-url>
-cd tgb
+git clone https://github.com/ambakhtiar/TeleDrive-v1
+cd TeleDrive-v1
 
 pip install -r requirements.txt
 ```
@@ -85,8 +85,8 @@ pip install -r requirements.txt
 
 ```bash
 # Install Python 3.10+ first: https://www.python.org/downloads/
-git clone <your-repo-url>
-cd tgb
+git clone https://github.com/ambakhtiar/TeleDrive-v1
+cd TeleDrive-v1
 
 python -m venv venv
 # Windows:
@@ -103,12 +103,12 @@ Use this on a PC, Mac, or a real Linux server/VPS — **not** on Termux/Android.
 
 ```bash
 docker build -t telegram-uploader .
-docker run -d --name tgb -p 8000:8000 \
+docker run -d --name TeleDrive-v1 -p 8000:8000 \
   -e API_ID=xxxxxxx -e API_HASH=xxxxxxxxxxxxxxxx \
-  -v tgb_data:/data \
+  -v TeleDrive-v1_data:/data \
   telegram-uploader
 ```
-The `-v tgb_data:/data` volume keeps your database and Telegram session across container restarts — without it, you'd have to log in again every time the container recreates.
+The `-v TeleDrive-v1_data:/data` volume keeps your database and Telegram session across container restarts — without it, you'd have to log in again every time the container recreates.
 
 ---
 
@@ -172,7 +172,7 @@ fly auth login
 
 fly launch --no-deploy          # pick a unique app name when prompted
 
-fly volumes create tgb_data --size 1 --region sin    # persists DB + session
+fly volumes create TeleDrive-v1_data --size 1 --region sin    # persists DB + session
 
 fly secrets set API_ID=xxxx API_HASH=xxxx
 
