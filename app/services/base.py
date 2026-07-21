@@ -33,8 +33,11 @@ class UploaderBase:
         self._started = False
         self._login_phone: str | None = None
         self._login_hash: str | None = None
-        self.cancel_set: set[str] = set()   # hashes to skip when dequeued
+        self.cancel_set: set[str] = set()   # hashes to hard-cancel (drop)
         self.failed: dict[str, dict] = {}    # hash -> {name, path, topic_id, error}
+        self._active: dict[str, "asyncio.Task"] = {}  # hash -> running upload task
+        self.pause_set: set[str] = set()    # per-file paused hashes
+        self.pending_items: dict[str, dict] = {}  # hash -> item (for resume/re-enqueue)
 
     # ---------- event broadcasting ----------
     def subscribe(self) -> asyncio.Queue:
@@ -102,7 +105,41 @@ class UploaderBase:
         ]
         for i in range(config.MAX_CONCURRENT_UPLOADS):
             self._tasks.append(asyncio.create_task(self._upload_worker(f"Worker-{i+1}")))
+        self._restore_queue()
         self.log("🌟 Uploader service started.")
+
+    def _restore_queue(self):
+        """Re-enqueue any uploads left pending from a previous run so an
+        interrupted batch resumes automatically (no re-selecting files)."""
+        import os
+        restored = 0
+        for row in self.db.queue_all():
+            path = row.get("path")
+            if not path or not os.path.exists(path):
+                # source/staged file is gone — can't resume it
+                self.db.queue_remove(row["hash"])
+                continue
+            try:
+                stats = os.stat(path)
+            except OSError:
+                self.db.queue_remove(row["hash"])
+                continue
+            item = {
+                "folder_name": row.get("folder_name") or os.path.dirname(path),
+                "path": path, "name": row["name"], "hash": row["hash"],
+                "mtime": row.get("mtime") or stats.st_mtime,
+                "stats": stats, "topic_id": row["topic_id"],
+            }
+            self.pending_items[row["hash"]] = item
+            if row.get("status") == "paused":
+                self.pause_set.add(row["hash"])
+            if row["hash"] not in self.queued_hashes:
+                self.queued_hashes.add(row["hash"])
+                self.queue.put_nowait(item)
+                restored += 1
+        if restored:
+            self.emit("queue", {"queued_files": len(self.queued_hashes)})
+            self.log(f"♻️ Resumed {restored} pending upload(s) from last session.")
 
     async def shutdown(self):
         # Best-effort final DB snapshot so a clean stop always leaves the
@@ -119,6 +156,22 @@ class UploaderBase:
             await self.client.disconnect()
         self.log("🛑 Service stopped.")
 
+    def queued_list(self):
+        """Every not-yet-done item with its state, for the UI's per-file rows."""
+        out = []
+        for h in list(self.queued_hashes):
+            item = self.pending_items.get(h)
+            if not item:
+                continue
+            if h in self.pause_set:
+                state = "paused"
+            elif h in self.progress:
+                state = "uploading"
+            else:
+                state = "pending"
+            out.append({"hash": h, "name": item.get("name"), "state": state})
+        return out
+
     def snapshot(self) -> dict:
         return {
             "status": self.status,
@@ -127,6 +180,7 @@ class UploaderBase:
             "queued_files": len(self.queued_hashes),
             "active_uploads": self.active_uploads,
             "progress": list(self.progress.values()),
+            "queued": self.queued_list(),
             "failed": list(self.failed.values()),
             "recent_uploads": self.db.recent(5),
             "group_id": config.active_group_id(),
@@ -134,5 +188,10 @@ class UploaderBase:
 
     def set_status(self, status):
         self.status = "paused" if status == "pause" else "running"
+        if self.status == "paused":
+            # Abort every in-flight upload immediately; the worker re-queues
+            # them so Resume continues (chunked files resume from last part).
+            for task in list(self._active.values()):
+                task.cancel()
         self.emit("status", {"status": self.status})
         return self.status

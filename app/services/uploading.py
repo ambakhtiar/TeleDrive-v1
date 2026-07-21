@@ -13,34 +13,69 @@ from app.services.helpers import format_metadata, fmt_duration
 
 
 class UploadMixin:
+    def _drop_from_queue(self, item, note=None):
+        """Remove an item from every queue view (memory + persistent DB)."""
+        h = item["hash"]
+        self.queued_hashes.discard(h)
+        self.pause_set.discard(h)
+        self.pending_items.pop(h, None)
+        self.progress.pop(h, None)
+        self.db.queue_remove(h)
+        self.emit("queue", {"queued_files": len(self.queued_hashes)})
+        if note:
+            self.log(note)
+
     async def _upload_worker(self, name):
         while True:
             try:
-                if self.status == "paused" or self.auth_state != "authorized":
+                if self.auth_state != "authorized":
                     await asyncio.sleep(1)
                     continue
 
                 item = await self.queue.get()
+                h = item["hash"]
                 try:
-                    if item["hash"] in self.cancel_set:
-                        self.cancel_set.discard(item["hash"])
-                        self.queued_hashes.discard(item["hash"])
-                        self.emit("queue", {"queued_files": len(self.queued_hashes)})
-                        self.log(f"🚫 Cancelled: {item['name']}")
+                    # hard cancel → drop and delete any staged copy
+                    if h in self.cancel_set:
+                        self.cancel_set.discard(h)
+                        self._delete_staged(item)
+                        self._drop_from_queue(item, f"🚫 Cancelled: {item['name']}")
                         continue
+                    # globally paused or this file paused → leave queued, wait
+                    if self.status == "paused" or h in self.pause_set:
+                        self.queue.put_nowait(item)
+                        await asyncio.sleep(0.5)
+                        continue
+
                     cfg = config.read_config()
-                    # respect concurrency unless turbo mode
                     while not cfg.get("turbo_mode", False) and self.active_uploads > 0:
+                        if self.status == "paused" or h in self.pause_set:
+                            break
                         await asyncio.sleep(0.4)
                         cfg = config.read_config()
+                    if self.status == "paused" or h in self.pause_set:
+                        self.queue.put_nowait(item)
+                        await asyncio.sleep(0.4)
+                        continue
+
                     self.active_uploads += 1
+                    task = asyncio.ensure_future(self._do_upload(name, item, cfg))
+                    self._active[h] = task
                     try:
-                        await self._do_upload(name, item, cfg)
+                        await task
+                    except asyncio.CancelledError:
+                        # aborted mid-upload by pause or per-file cancel
+                        if h in self.cancel_set:
+                            self.cancel_set.discard(h)
+                            self._delete_staged(item)
+                            self._drop_from_queue(item, f"🚫 Cancelled: {item['name']}")
+                        else:
+                            self.progress.pop(h, None)
+                            self.queue.put_nowait(item)  # re-try / stay paused
+                            self.emit("queue", {"queued_files": len(self.queued_hashes)})
                     finally:
                         self.active_uploads -= 1
-                        self.queued_hashes.discard(item["hash"])
-                        self.progress.pop(item["hash"], None)
-                        self.emit("queue", {"queued_files": len(self.queued_hashes)})
+                        self._active.pop(h, None)
                 finally:
                     self.queue.task_done()
             except asyncio.CancelledError:
@@ -48,6 +83,15 @@ class UploadMixin:
             except Exception as e:
                 self.log(f"❌ Worker {name} error: {e}")
                 await asyncio.sleep(3)
+
+    def _delete_staged(self, item):
+        """Delete a browser-upload staged copy (safe no-op for local files)."""
+        path = item.get("path", "")
+        try:
+            if os.path.abspath(path).startswith(os.path.abspath(config.UPLOAD_STAGING_DIR)):
+                os.remove(path)
+        except OSError:
+            pass
 
     def _emit_progress(self, item, current, total, start_ts, label=None):
         elapsed = max(time.time() - start_ts, 0.1)
@@ -73,7 +117,12 @@ class UploadMixin:
             "hash": h, "name": item["name"], "path": item["path"],
             "topic_id": item["topic_id"], "error": error,
         }
+        # No longer pending — it's in the failed list (retryable via retry_failed).
+        self.queued_hashes.discard(h)
+        self.pending_items.pop(h, None)
+        self.db.queue_remove(h)
         self.emit("failed", {"failed": list(self.failed.values())})
+        self.emit("queue", {"queued_files": len(self.queued_hashes)})
 
     async def _finalize_success(self, name, item, group_id, msg_id, msg_link,
                                 elapsed, size, sha, auto_delete,
@@ -99,6 +148,12 @@ class UploadMixin:
                 os.remove(item["path"])
             except Exception:
                 pass
+        # Done — clear from every queue view.
+        self.queued_hashes.discard(item["hash"])
+        self.pending_items.pop(item["hash"], None)
+        self.progress.pop(item["hash"], None)
+        self.db.queue_remove(item["hash"])
+        self.emit("queue", {"queued_files": len(self.queued_hashes)})
         await asyncio.sleep(config.DELAY_BETWEEN_UPLOADS)
 
     async def _do_upload(self, name, item, cfg):
@@ -259,20 +314,56 @@ class UploadMixin:
 
     # ---------- queue controls ----------
     def cancel_item(self, file_hash: str):
+        """Hard-cancel: abort now if uploading, drop from the queue either way."""
         self.cancel_set.add(file_hash)
+        self.pause_set.discard(file_hash)  # so a paused item gets dequeued+dropped
+        task = self._active.get(file_hash)
+        if task:
+            task.cancel()
         return {"status": "cancelling"}
 
+    def pause_item(self, file_hash: str):
+        """Pause one file — abort it if uploading; it stays queued for resume."""
+        self.pause_set.add(file_hash)
+        self.db.queue_set_status(file_hash, "paused")
+        task = self._active.get(file_hash)
+        if task:
+            task.cancel()
+        self.emit("queue", {"queued_files": len(self.queued_hashes)})
+        return {"status": "paused"}
+
+    def resume_item(self, file_hash: str):
+        self.pause_set.discard(file_hash)
+        self.db.queue_set_status(file_hash, "pending")
+        # make sure it's actually in the working queue
+        if file_hash not in self.queued_hashes:
+            item = self.pending_items.get(file_hash)
+            if item:
+                self.queued_hashes.add(file_hash)
+                self.queue.put_nowait(item)
+        self.emit("queue", {"queued_files": len(self.queued_hashes)})
+        return {"status": "resumed"}
+
     def clear_queue(self):
+        """Cancel everything (active + pending + paused) and empty the queue."""
+        for task in list(self._active.values()):
+            task.cancel()
         drained = 0
         while not self.queue.empty():
             try:
                 item = self.queue.get_nowait()
-                self.queued_hashes.discard(item["hash"])
+                self._delete_staged(item)
                 self.queue.task_done()
                 drained += 1
             except asyncio.QueueEmpty:
                 break
-        self.emit("queue", {"queued_files": len(self.queued_hashes)})
+        for h in list(self.queued_hashes):
+            self.db.queue_remove(h)
+        self.queued_hashes.clear()
+        self.pause_set.clear()
+        self.pending_items.clear()
+        self.progress.clear()
+        self.emit("queue", {"queued_files": 0})
         self.log(f"🧹 Cleared {drained} queued file(s).")
         return {"cleared": drained}
 

@@ -28,7 +28,9 @@ STATIC_DIR = os.path.join(config.PROJECT_DIR, "static")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    config.cleanup_staging()  # remove leftover browser-upload temp files
+    # NOTE: staging is NOT wiped on startup anymore — browser-uploaded files
+    # still pending in the persistent queue must survive a restart so they can
+    # resume. They're removed individually on success/cancel.
     service = UploaderService()
     deps.set_service(service)
     await service.start()

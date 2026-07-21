@@ -37,8 +37,48 @@ class Database:
              size INTEGER, sha256 TEXT,
              PRIMARY KEY (file_hash, part_index))"""
         )
+        # Pending upload queue — persisted so an interrupted run resumes on
+        # restart instead of forcing the user to re-select files.
+        self.conn.execute(
+            """CREATE TABLE IF NOT EXISTS queue
+            (hash TEXT PRIMARY KEY, name TEXT, path TEXT, topic_id INTEGER,
+             folder_name TEXT, mtime REAL, status TEXT DEFAULT 'pending',
+             added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"""
+        )
         self.conn.commit()
         self.backfill_from_links()
+
+    # ---------- persistent upload queue ----------
+    def queue_add(self, item):
+        with self._lock:
+            self.conn.execute(
+                "INSERT OR IGNORE INTO queue "
+                "(hash, name, path, topic_id, folder_name, mtime, status) "
+                "VALUES (?,?,?,?,?,?, 'pending')",
+                (item["hash"], item["name"], item["path"], item["topic_id"],
+                 item.get("folder_name"), item.get("mtime")),
+            )
+            self.conn.commit()
+
+    def queue_remove(self, file_hash):
+        with self._lock:
+            self.conn.execute("DELETE FROM queue WHERE hash=?", (file_hash,))
+            self.conn.commit()
+
+    def queue_set_status(self, file_hash, status):
+        with self._lock:
+            self.conn.execute("UPDATE queue SET status=? WHERE hash=?",
+                              (status, file_hash))
+            self.conn.commit()
+
+    def queue_all(self):
+        with self._lock:
+            rows = self.conn.execute(
+                "SELECT hash, name, path, topic_id, folder_name, mtime, status "
+                "FROM queue ORDER BY mtime ASC, added_at ASC"
+            ).fetchall()
+        keys = ["hash", "name", "path", "topic_id", "folder_name", "mtime", "status"]
+        return [dict(zip(keys, r)) for r in rows]
 
     def is_uploaded(self, file_hash):
         with self._lock:

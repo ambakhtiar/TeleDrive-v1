@@ -34,6 +34,16 @@ def queue_cancel(file_hash: str):
     return get_service().cancel_item(file_hash)
 
 
+@router.post("/queue/pause/{file_hash}")
+def queue_pause(file_hash: str):
+    return get_service().pause_item(file_hash)
+
+
+@router.post("/queue/resume/{file_hash}")
+def queue_resume(file_hash: str):
+    return get_service().resume_item(file_hash)
+
+
 @router.post("/queue/clear")
 def queue_clear():
     return get_service().clear_queue()

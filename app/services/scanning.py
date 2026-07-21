@@ -9,10 +9,13 @@ from app.services.helpers import original_timestamp
 
 class ScanMixin:
     def enqueue_item(self, item: dict):
-        """Directly enqueue a prepared item (used by browser upload / manual add)."""
+        """Directly enqueue a prepared item (used by browser upload / manual add).
+        Also persisted to the DB queue so it resumes after a restart."""
         if item["hash"] in self.queued_hashes:
             return False
         self.queued_hashes.add(item["hash"])
+        self.pending_items[item["hash"]] = item
+        self.db.queue_add(item)
         self.queue.put_nowait(item)
         self.emit("queue", {"queued_files": len(self.queued_hashes)})
         return True
