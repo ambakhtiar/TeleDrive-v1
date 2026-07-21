@@ -14,7 +14,7 @@ class DownloadMixin:
             raise ValueError("This older upload has no stored message id — open its Telegram link instead.")
         if self.auth_state != "authorized":
             raise ValueError("Not connected to Telegram. Log in first.")
-        entity = await self._resolve_entity(config.active_group_id())
+        entity = await self._resolve_entity(rec.get("chat_id") or config.active_group_id())
         msg = await self.client.get_messages(entity, ids=int(rec["message_id"]))
         if not msg or not getattr(msg, "media", None):
             raise ValueError("This file is no longer available in Telegram (the message was deleted).")
@@ -37,7 +37,7 @@ class DownloadMixin:
         if self.auth_state != "authorized":
             raise ValueError("Log in to Telegram first.")
 
-        group_id = config.active_group_id()
+        group_id = rec.get("chat_id") or config.active_group_id()
         entity = await self._resolve_entity(group_id)
         msg = await self.client.get_messages(entity, ids=int(rec["message_id"]))
         if not msg or not getattr(msg, "media", None):

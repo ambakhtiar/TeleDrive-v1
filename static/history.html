@@ -36,6 +36,7 @@
         .empty { text-align:center; color:#888; padding:30px; font-size:13px; }
         .meta { font-size:11px; color:#80868b; }
         .size-badge { font-size:11px; color:#5f6368; background:#eef1f4; border-radius:4px; padding:1px 6px; margin-left:6px; }
+        .dur-badge { font-size:11px; color:#8a6d00; background:#fff3cd; border-radius:4px; padding:1px 6px; margin-left:6px; }
         #toast { position:fixed; bottom:-100px; left:50%; transform:translateX(-50%); color:#fff; padding:12px 24px; border-radius:8px; font-weight:bold; font-size:13px; z-index:9999; transition:bottom .4s; box-shadow:0 4px 12px rgba(0,0,0,.2); max-width:90%; text-align:center; }
     </style>
 </head>
@@ -102,7 +103,7 @@ async function loadMore(){
     } else {
         ul.insertAdjacentHTML('beforeend', data.map(f=>`
             <li><div style="min-width:0;"><span class="fname">📄 ${f.name}</span>
-              <span class="meta">${f.time}${f.size?`<span class="size-badge">${fmtSize(f.size)}</span>`:''}</span></div>
+              <span class="meta">${f.time}${f.size?`<span class="size-badge">${fmtSize(f.size)}</span>`:''}${f.duration?`<span class="dur-badge">⏱️ ${fmtDur(f.duration)}</span>`:''}</span></div>
             <div class="row-actions">
               ${f.downloadable?`<button class="act dl" title="Download" onclick="doDownload('${f.hash}', this)">⬇️</button>`:''}
               ${f.link?`<a href="${f.link}" target="_blank" class="act" title="Open in Telegram">🔗</a>`:''}
@@ -125,6 +126,14 @@ function fmtSize(b){
     if(b < MB) return (b/KB).toFixed(0)+' KB';
     if(b < GB) return (b/MB).toFixed(1)+' MB';
     return (b/GB).toFixed(2)+' GB';
+}
+function fmtDur(s){
+    if(!s || s<=0) return '';
+    s=Math.round(s);
+    if(s<60) return s+'s';
+    const m=Math.floor(s/60), sec=s%60;
+    if(m<60) return m+'m '+sec+'s';
+    const h=Math.floor(m/60); return h+'h '+(m%60)+'m';
 }
 
 let toastTimer;

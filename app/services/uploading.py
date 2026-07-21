@@ -77,6 +77,7 @@ class UploadMixin:
                 "percentage": round(pct, 1),
                 "speed": speed,
                 "eta": round(eta),
+                "elapsed": round(elapsed),
             }
             self.emit("progress", self.progress[h])
 
@@ -105,6 +106,7 @@ class UploadMixin:
                 self.db.mark_uploaded(
                     h, item["name"], item["path"], item["topic_id"], msg_link,
                     message_id=msg.id, size=file_size, sha256=file_sha,
+                    chat_id=group_id, duration=round(elapsed, 1),
                 )
                 self.log(f"✅ [{name}] Done: {item['name']} in {fmt_duration(elapsed)}")
                 self.emit("uploaded", {"name": item["name"], "link": msg_link,

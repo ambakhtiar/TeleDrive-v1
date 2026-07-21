@@ -564,7 +564,7 @@ function renderProgressList(items) {
             </div>
             <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${p.percentage}%;"></div></div>
             <div class="progress-stats"><span>${p.percentage}%</span><span style="color:#1e8e3e;">${fmtSpeed(p.speed)}</span><span>${fmtBytes(p.current)}/${fmtBytes(p.total)}</span></div>
-            <div style="text-align:center;font-size:11px;color:#f29900;font-weight:bold;margin-top:4px;">⏳ ${fmtETA(p.eta)} left</div>
+            <div class="progress-stats" style="margin-top:4px;"><span style="color:#5f6368;">⏱️ ${fmtETA(p.elapsed)} elapsed</span><span style="color:#f29900;">⏳ ${fmtETA(p.eta)} left</span></div>
         </div>`).join('');
 }
 function renderFailed(items){
