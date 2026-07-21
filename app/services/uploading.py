@@ -82,6 +82,7 @@ class UploadMixin:
             item["hash"], item["name"], item["path"], item["topic_id"], msg_link,
             message_id=msg_id, size=size, sha256=sha, chat_id=group_id,
             duration=round(elapsed, 1), chunked=chunked, total_parts=total_parts,
+            original_mtime=item.get("mtime"),
         )
         self.log(f"✅ [{name}] Done: {item['name']} in {fmt_duration(elapsed)}")
         self.emit("uploaded", {"name": item["name"], "link": msg_link,
@@ -120,7 +121,13 @@ class UploadMixin:
             await self._do_chunked_upload(name, item, group_id, auto_delete, size)
             return
 
-        caption = format_metadata(item["name"], item["path"], item["stats"])
+        try:
+            rel_path = os.path.relpath(os.path.dirname(item["path"]), item["folder_name"])
+        except Exception:
+            rel_path = None
+        self.log(f"DEBUG: path={item['path']} folder_name={item['folder_name']} rel_path={rel_path}")
+        caption = format_metadata(item["name"], item["path"], item["stats"],
+                                  rel_path=rel_path, original_mtime=item.get("mtime"))
         start_time = [time.time()]
 
         async def progress_callback(current, total):

@@ -384,6 +384,8 @@
             z-index: 9999;
             transition: bottom .4s;
             box-shadow: 0 4px 12px rgba(0, 0, 0, .2);
+            max-width: 90%;
+            text-align: center;
         }
 
         .spin {
@@ -423,6 +425,24 @@
 
         .ws-dot.on {
             background: #1e8e3e;
+        }
+
+        @media (max-width: 540px) {
+            .card { padding: 10px; }
+            .stats-container { flex-wrap: wrap; gap: 6px; }
+            .stat-box { flex: 1 1 100%; }
+            .stats-container > :not(.stat-box) { display: none; }
+            .btn { width: 100%; }
+            .progress-stats { flex-wrap: wrap; gap: 4px; font-size: 10px; }
+            .modal-content { padding: 10px; }
+            .modal-overlay { padding: 8px; }
+            .row-group { flex-direction: column; }
+            .settings-bar { flex-wrap: wrap; gap: 6px; }
+            #recent-list li { flex-direction: column; align-items: flex-start; gap: 4px; }
+            #recent-list li > span:first-child { max-width: 100%; white-space: normal; word-break: break-all; }
+            #drop-zone .btn { display: block; width: 100%; margin: 6px 0; }
+            #confirm-modal .modal-content > div:last-child { flex-direction: column; }
+            #confirm-modal .modal-content > div:last-child button { width: 100%; }
         }
     </style>
 </head>
@@ -467,8 +487,11 @@
     </div>
 
     <div id="main-dashboard" class="card">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-            <h2 style="margin:0;">⚙️ Control Panel <span id="ws-dot" class="ws-dot"></span></h2>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+                <h2 style="margin:0;">⚙️ TeleDrive</h2>
+                <span id="ws-dot" class="ws-dot"></span>
+            </div>
             <button id="logout-btn" onclick="tgLogout()" class="btn"
                 style="display:none;width:auto;background:#fff;border:1px solid #d93025;color:#d93025;padding:8px 14px;">🚪
                 Logout</button>
@@ -504,7 +527,7 @@
             </div>
         </div>
 
-        <div style="display:flex;justify-content:space-between;">
+        <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;">
             <button onclick="sendAction('pause')" class="btn btn-pause">⏸️ PAUSE</button>
             <button onclick="sendAction('resume')" class="btn btn-resume">▶️ RESUME</button>
         </div>
@@ -568,9 +591,9 @@
         <ul id="recent-list">
             <li>Loading…</li>
         </ul>
-        <div style="display:flex;gap:10px;">
-            <button onclick="location.href='/history'" class="btn btn-history" style="flex:1;">🔍 Full History</button>
-            <button onclick="openReports()" class="btn btn-report" style="flex:1;">📊 Reports</button>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button onclick="location.href='/history'" class="btn btn-history" style="flex:1;min-width:160px;">🔍 Full History</button>
+            <button onclick="openReports()" class="btn btn-report" style="flex:1;min-width:160px;">📊 Reports</button>
         </div>
     </div>
 
@@ -582,10 +605,10 @@
                     style="background:#f1f3f4;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;">X</button>
             </div>
             <div style="overflow-y:auto;">
-                <div style="display:flex;gap:8px;margin-bottom:12px;">
-                    <button id="tab-local" class="btn" style="flex:1;background:#1a73e8;" onclick="addTab('local')">🖥️
+                <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+                    <button id="tab-local" class="btn" style="flex:1;min-width:140px;background:#1a73e8;" onclick="addTab('local')">🖥️
                         Local Path</button>
-                    <button id="tab-upload" class="btn" style="flex:1;background:#5f6368;" onclick="addTab('upload')">📱
+                    <button id="tab-upload" class="btn" style="flex:1;min-width:140px;background:#5f6368;" onclick="addTab('upload')">📱
                         Upload from Device</button>
                 </div>
 
@@ -862,7 +885,7 @@
                 if (routing.mode === 'topic') topic = routing.topic_id;
                 else if (routing.mode === 'extension') topic = typeMap[LABEL[fileTypeOf(f.name)]] || 1;
                 else { const parts = rel.split('/'); const top = parts.length > 1 ? parts[0] : '.'; topic = folderMap[top] || 1; }
-                const fd = new FormData(); fd.append('file', f); fd.append('topic_id', topic); fd.append('rel_path', rel);
+                const fd = new FormData(); fd.append('file', f); fd.append('topic_id', topic); fd.append('rel_path', rel); fd.append('last_modified', f.lastModified);
                 try {
                     const r = await fetch('/api/upload', { method: 'POST', body: fd });
                     const j = await r.json(); if (r.ok && j.queued) ok++;

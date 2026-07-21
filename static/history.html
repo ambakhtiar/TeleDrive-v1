@@ -38,6 +38,18 @@
         .size-badge { font-size:11px; color:#5f6368; background:#eef1f4; border-radius:4px; padding:1px 6px; margin-left:6px; }
         .dur-badge { font-size:11px; color:#8a6d00; background:#fff3cd; border-radius:4px; padding:1px 6px; margin-left:6px; }
         #toast { position:fixed; bottom:-100px; left:50%; transform:translateX(-50%); color:#fff; padding:12px 24px; border-radius:8px; font-weight:bold; font-size:13px; z-index:9999; transition:bottom .4s; box-shadow:0 4px 12px rgba(0,0,0,.2); max-width:90%; text-align:center; }
+
+        @media (max-width: 540px) {
+            .card { padding: 10px; }
+            .top-bar h2 { font-size: 16px; }
+            .filter-row { flex-direction: column; gap: 6px; }
+            .filter-actions { flex-direction: column; }
+            .filter-actions .btn { width: 100%; }
+            #list-box li { flex-direction: column; align-items: flex-start; gap: 4px; }
+            #list-box li .fname { white-space: normal; word-break: break-all; }
+            #list-box li .meta { white-space: normal; }
+            .row-actions { align-self: stretch; justify-content: flex-end; }
+        }
     </style>
 </head>
 <body>

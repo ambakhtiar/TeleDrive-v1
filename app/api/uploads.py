@@ -66,6 +66,7 @@ async def upload(
     file: UploadFile = File(...),
     topic_id: int = Form(0),
     rel_path: str = Form(""),
+    last_modified: float = Form(0),
 ):
     """Stage ONE browser-uploaded file and queue it. Called once per file so a
     dropped connection never loses a whole batch."""
@@ -81,7 +82,17 @@ async def upload(
     with open(dest, "wb") as out:
         while chunk := await file.read(1024 * 1024):
             out.write(chunk)
-    ok = svc.enqueue_staged_file(dest, int(topic_id))
+    # Restore the original file mtime from the browser's File.lastModified
+    # so that original_timestamp()'s filesystem fallback returns the real
+    # creation date even for file types without EXIF/QuickTime metadata.
+    client_ts = None
+    if last_modified > 0:
+        try:
+            client_ts = last_modified / 1000.0
+            os.utime(dest, (client_ts, client_ts))
+        except Exception:
+            pass
+    ok = svc.enqueue_staged_file(dest, int(topic_id), batch_dir, client_mtime=client_ts)
     if not ok:
         # Duplicate or bad file — don't leave the copy sitting around.
         try:

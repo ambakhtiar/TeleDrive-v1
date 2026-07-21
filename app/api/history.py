@@ -1,4 +1,5 @@
 """/api/history + /api/download — browse, search, and restore files."""
+from datetime import timezone
 from urllib.parse import quote
 
 from fastapi import APIRouter, HTTPException
@@ -36,16 +37,25 @@ async def download_precheck(file_hash: str):
 @router.get("/download/{file_hash}")
 async def download(file_hash: str):
     try:
-        file_name, stream = await get_service().download_file(file_hash)
+        file_name, stream, orig_mtime = await get_service().download_file(file_hash)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+    headers = {}
+    if orig_mtime:
+        from datetime import datetime
+        dt = datetime.fromtimestamp(orig_mtime, tz=timezone.utc)
+        headers["Last-Modified"] = dt.strftime("%a, %d %b %Y %H:%M:%S GMT")
+
     ascii_name = file_name.encode("ascii", "ignore").decode() or "download"
     disposition = (
         f"attachment; filename=\"{ascii_name}\"; "
         f"filename*=UTF-8''{quote(file_name)}"
     )
+    headers["Content-Disposition"] = disposition
+
     return StreamingResponse(
         stream,
         media_type="application/octet-stream",
-        headers={"Content-Disposition": disposition},
+        headers=headers,
     )

@@ -24,6 +24,7 @@ class Database:
             ("duration", "REAL"),     # how long the upload took, seconds
             ("chunked", "INTEGER"),   # 1 if split across multiple messages
             ("total_parts", "INTEGER"),
+            ("original_mtime", "REAL"),  # original file creation timestamp for download restore
         ):
             try:
                 self.conn.execute(f"ALTER TABLE uploads ADD COLUMN {col} {decl}")
@@ -49,15 +50,18 @@ class Database:
 
     def mark_uploaded(self, file_hash, file_name, file_path, topic_id,
                       message_link=None, message_id=None, size=None, sha256=None,
-                      chat_id=None, duration=None, chunked=0, total_parts=1):
+                      chat_id=None, duration=None, chunked=0, total_parts=1,
+                      original_mtime=None):
         with self._lock:
             self.conn.execute(
                 "INSERT OR REPLACE INTO uploads "
                 "(file_hash, file_name, file_path, topic_id, message_link, "
-                " message_id, size, sha256, chat_id, duration, chunked, total_parts) "
-                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                " message_id, size, sha256, chat_id, duration, chunked, total_parts, "
+                " original_mtime) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (file_hash, file_name, file_path, topic_id, message_link,
-                 message_id, size, sha256, chat_id, duration, chunked, total_parts),
+                 message_id, size, sha256, chat_id, duration, chunked, total_parts,
+                 original_mtime),
             )
             self.conn.commit()
 
@@ -65,7 +69,7 @@ class Database:
         """Full row for a single upload (used by download/restore)."""
         keys = ["file_hash", "file_name", "file_path", "topic_id", "message_link",
                 "message_id", "size", "sha256", "chat_id", "duration",
-                "chunked", "total_parts"]
+                "chunked", "total_parts", "original_mtime"]
         with self._lock:
             row = self.conn.execute(
                 f"SELECT {', '.join(keys)} FROM uploads WHERE file_hash=?",

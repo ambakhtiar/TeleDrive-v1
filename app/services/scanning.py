@@ -154,16 +154,26 @@ class ScanMixin:
         self.log(f"➕ Queued {added} file(s) from {path} ({skipped} skipped).")
         return {"added": added, "skipped": skipped}
 
-    def enqueue_staged_file(self, full_path: str, topic_id: int):
-        """Enqueue a single already-staged (browser-uploaded) file."""
+    def enqueue_staged_file(self, full_path: str, topic_id: int, root_dir: str = None,
+                            client_mtime: float = None):
+        """Enqueue a single already-staged (browser-uploaded) file.
+
+        ``client_mtime`` — epoch-seconds from the browser's ``File.lastModified``.
+        When provided (browser uploads) it is used as the authoritative timestamp
+        directly, skipping EXIF/QuickTime metadata lookups — those are often stale
+        (rewritten by gallery/messaging apps).  When absent (local-path scans) the
+        existing EXIF → QuickTime → filesystem-fallback logic in
+        ``original_timestamp()`` applies unchanged.
+        """
         file_hash, stats = generate_file_hash(full_path)
         if not file_hash:
             return False
         if self.db.is_uploaded(file_hash):
             return False
+        mtime = client_mtime if client_mtime else original_timestamp(full_path, stats)
         return self.enqueue_item({
-            "folder_name": os.path.dirname(full_path),
+            "folder_name": root_dir or os.path.dirname(full_path),
             "path": full_path, "name": os.path.basename(full_path),
-            "hash": file_hash, "mtime": stats.st_mtime,
+            "hash": file_hash, "mtime": mtime,
             "stats": stats, "topic_id": int(topic_id),
         })

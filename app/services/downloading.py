@@ -21,6 +21,8 @@ class DownloadMixin:
         if self.auth_state != "authorized":
             raise ValueError("Not connected to Telegram. Log in first.")
 
+        mtime = rec.get("original_mtime")
+
         if rec.get("chunked"):
             chunks = self.db.get_chunks(file_hash)
             expected = rec.get("total_parts") or len(chunks)
@@ -30,7 +32,8 @@ class DownloadMixin:
             first = await self.client.get_messages(entity, ids=int(chunks[0]["message_id"]))
             if not first or not getattr(first, "media", None):
                 raise ValueError("This file is no longer available in Telegram (parts were deleted).")
-            return {"ok": True, "name": rec["file_name"], "size": rec.get("size")}
+            return {"ok": True, "name": rec["file_name"], "size": rec.get("size"),
+                    "mtime": mtime}
 
         if not rec.get("message_id"):
             raise ValueError("This older upload has no stored message id — open its Telegram link instead.")
@@ -38,7 +41,8 @@ class DownloadMixin:
         msg = await self.client.get_messages(entity, ids=int(rec["message_id"]))
         if not msg or not getattr(msg, "media", None):
             raise ValueError("This file is no longer available in Telegram (the message was deleted).")
-        return {"ok": True, "name": rec["file_name"], "size": rec.get("size")}
+        return {"ok": True, "name": rec["file_name"], "size": rec.get("size"),
+                "mtime": mtime}
 
     async def download_file(self, file_hash: str):
         """Return (file_name, async_byte_iterator) for a stored upload."""
@@ -49,8 +53,10 @@ class DownloadMixin:
             raise ValueError("Log in to Telegram first.")
         entity = await self._resolve_entity(self._file_group(rec))
 
+        orig_mtime = rec.get("original_mtime")
+
         if rec.get("chunked"):
-            return rec["file_name"], self._stream_chunked(entity, file_hash, rec)
+            return rec["file_name"], self._stream_chunked(entity, file_hash, rec), orig_mtime
 
         if not rec.get("message_id"):
             raise ValueError(
@@ -65,7 +71,7 @@ class DownloadMixin:
             async for chunk in self.client.iter_download(msg.media):
                 yield chunk
 
-        return rec["file_name"], stream()
+        return rec["file_name"], stream(), orig_mtime
 
     async def _stream_chunked(self, entity, file_hash, rec):
         """Stream a chunked file's parts in order, verifying SHA-256 of each
