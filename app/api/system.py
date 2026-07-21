@@ -23,6 +23,12 @@ async def send_report():
     return {"status": "success" if ok else "failed"}
 
 
+@router.post("/action/backup_now")
+async def backup_now():
+    ok = await get_service().snapshot_db()
+    return {"status": "success" if ok else "failed"}
+
+
 @router.post("/queue/cancel/{file_hash}")
 def queue_cancel(file_hash: str):
     return get_service().cancel_item(file_hash)

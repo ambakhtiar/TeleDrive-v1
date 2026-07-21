@@ -71,6 +71,10 @@ SCAN_INTERVAL = int(os.getenv("SCAN_INTERVAL", 3))
 # value (e.g. 5242880 = 5MB) to exercise chunking in tests.
 CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", 1900 * 1024 * 1024))
 
+# How often the SQLite index is snapshotted into the Telegram Backup topic so
+# it survives a lost local DB / a fresh install on another machine. Minutes.
+BACKUP_INTERVAL_MIN = int(os.getenv("BACKUP_INTERVAL_MIN", 30))
+
 IMAGE_EXTS = [".jpg", ".jpeg", ".png", ".webp", ".bmp", ".svg", ".gif"]
 VIDEO_EXTS = [".mp4", ".mkv", ".avi", ".mov", ".webm", ".ts", ".flv"]
 

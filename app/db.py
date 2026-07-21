@@ -225,6 +225,25 @@ class Database:
                 f"WHERE date(uploaded_at, 'localtime') = {day_expr}"
             ).fetchone()[0]
 
+    def backup_to(self, dest_path):
+        """Write a consistent copy of the live DB using SQLite's online backup
+        API (safe even while the DB is in use). Returns metadata about it."""
+        with self._lock:
+            dest = sqlite3.connect(dest_path)
+            try:
+                self.conn.backup(dest)
+            finally:
+                dest.close()
+            rows = self.conn.execute("SELECT COUNT(*) FROM uploads").fetchone()[0]
+            last = self.conn.execute("SELECT MAX(uploaded_at) FROM uploads").fetchone()[0]
+        return {"rows": rows, "last": last or ""}
+
+    def stats_meta(self):
+        with self._lock:
+            rows = self.conn.execute("SELECT COUNT(*) FROM uploads").fetchone()[0]
+            last = self.conn.execute("SELECT MAX(uploaded_at) FROM uploads").fetchone()[0]
+        return {"rows": rows, "last": last or ""}
+
     def close(self):
         with self._lock:
             self.conn.close()

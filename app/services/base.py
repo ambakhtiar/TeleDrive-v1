@@ -98,12 +98,20 @@ class UploaderBase:
         self._tasks = [
             asyncio.create_task(self._daily_report_loop()),
             asyncio.create_task(self._startup_maintenance()),
+            asyncio.create_task(self._backup_loop()),
         ]
         for i in range(config.MAX_CONCURRENT_UPLOADS):
             self._tasks.append(asyncio.create_task(self._upload_worker(f"Worker-{i+1}")))
         self.log("🌟 Uploader service started.")
 
     async def shutdown(self):
+        # Best-effort final DB snapshot so a clean stop always leaves the
+        # latest index safe in Telegram.
+        try:
+            if self.auth_state == "authorized":
+                await asyncio.wait_for(self.snapshot_db(), timeout=60)
+        except Exception:
+            pass
         for t in self._tasks:
             t.cancel()
         self.db.close()
