@@ -66,6 +66,11 @@ DELAY_BETWEEN_UPLOADS = float(os.getenv("DELAY_BETWEEN_UPLOADS", 1.5))
 UPLOAD_RETRY_LIMIT = int(os.getenv("UPLOAD_RETRY_LIMIT", 3))
 SCAN_INTERVAL = int(os.getenv("SCAN_INTERVAL", 3))
 
+# Files larger than this are split into parts (Telegram caps a single file at
+# 2GB free / 4GB Premium). Default ~1.9GB stays under the free cap. Set a small
+# value (e.g. 5242880 = 5MB) to exercise chunking in tests.
+CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", 1900 * 1024 * 1024))
+
 IMAGE_EXTS = [".jpg", ".jpeg", ".png", ".webp", ".bmp", ".svg", ".gif"]
 VIDEO_EXTS = [".mp4", ".mkv", ".avi", ".mov", ".webm", ".ts", ".flv"]
 

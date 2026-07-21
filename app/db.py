@@ -22,11 +22,20 @@ class Database:
             ("sha256", "TEXT"),
             ("chat_id", "INTEGER"),   # which group/channel the file lives in
             ("duration", "REAL"),     # how long the upload took, seconds
+            ("chunked", "INTEGER"),   # 1 if split across multiple messages
+            ("total_parts", "INTEGER"),
         ):
             try:
                 self.conn.execute(f"ALTER TABLE uploads ADD COLUMN {col} {decl}")
             except sqlite3.OperationalError:
                 pass
+        # Parts of a chunked (>Telegram-limit) file, one row per message.
+        self.conn.execute(
+            """CREATE TABLE IF NOT EXISTS file_chunks
+            (file_hash TEXT, part_index INTEGER, message_id INTEGER,
+             size INTEGER, sha256 TEXT,
+             PRIMARY KEY (file_hash, part_index))"""
+        )
         self.conn.commit()
         self.backfill_from_links()
 
@@ -40,28 +49,58 @@ class Database:
 
     def mark_uploaded(self, file_hash, file_name, file_path, topic_id,
                       message_link=None, message_id=None, size=None, sha256=None,
-                      chat_id=None, duration=None):
+                      chat_id=None, duration=None, chunked=0, total_parts=1):
         with self._lock:
             self.conn.execute(
                 "INSERT OR REPLACE INTO uploads "
                 "(file_hash, file_name, file_path, topic_id, message_link, "
-                " message_id, size, sha256, chat_id, duration) "
-                "VALUES (?,?,?,?,?,?,?,?,?,?)",
+                " message_id, size, sha256, chat_id, duration, chunked, total_parts) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
                 (file_hash, file_name, file_path, topic_id, message_link,
-                 message_id, size, sha256, chat_id, duration),
+                 message_id, size, sha256, chat_id, duration, chunked, total_parts),
             )
             self.conn.commit()
 
     def get_upload(self, file_hash):
         """Full row for a single upload (used by download/restore)."""
         keys = ["file_hash", "file_name", "file_path", "topic_id", "message_link",
-                "message_id", "size", "sha256", "chat_id", "duration"]
+                "message_id", "size", "sha256", "chat_id", "duration",
+                "chunked", "total_parts"]
         with self._lock:
             row = self.conn.execute(
                 f"SELECT {', '.join(keys)} FROM uploads WHERE file_hash=?",
                 (file_hash,),
             ).fetchone()
         return dict(zip(keys, row)) if row else None
+
+    # ---------- chunked-file parts ----------
+    def add_chunk(self, file_hash, part_index, message_id, size, sha256):
+        with self._lock:
+            self.conn.execute(
+                "INSERT OR REPLACE INTO file_chunks "
+                "(file_hash, part_index, message_id, size, sha256) VALUES (?,?,?,?,?)",
+                (file_hash, part_index, message_id, size, sha256),
+            )
+            self.conn.commit()
+
+    def get_chunks(self, file_hash):
+        """Ordered list of a chunked file's parts."""
+        with self._lock:
+            rows = self.conn.execute(
+                "SELECT part_index, message_id, size, sha256 FROM file_chunks "
+                "WHERE file_hash=? ORDER BY part_index",
+                (file_hash,),
+            ).fetchall()
+        return [{"part_index": r[0], "message_id": r[1], "size": r[2], "sha256": r[3]}
+                for r in rows]
+
+    def done_chunk_indices(self, file_hash):
+        """Set of part indices already uploaded (for resume)."""
+        with self._lock:
+            rows = self.conn.execute(
+                "SELECT part_index FROM file_chunks WHERE file_hash=?", (file_hash,)
+            ).fetchall()
+        return {r[0] for r in rows}
 
     @staticmethod
     def _parse_link(link):
