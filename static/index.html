@@ -2,13 +2,13 @@
 <html>
 
 <head>
-    <title>✈️ Telegram Uploader — Control Panel</title>
+    <title>TeleDrive — Telegram Cloud Uploader</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description"
         content="Upload local folders or device files to Telegram groups & topics, with live progress and smart routing.">
     <meta name="theme-color" content="#229ED9">
     <link rel="icon"
-        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23229ED9'/%3E%3Ctext x='50' y='72' font-size='60' text-anchor='middle'%3E✈️%3C/text%3E%3C/svg%3E">
+        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%232AABEE'/%3E%3Cstop offset='1' stop-color='%23229ED9'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' rx='26' fill='url(%23g)'/%3E%3Cpath fill='%23fff' d='M75 30 L27 51 c-2 .9 -1.8 3.8 .3 4.4 L41 59 L46 73 c.7 2 3.4 2.1 4.3 .3 L57 63 L69 72 c1.6 1.2 3.9 .3 4.3-1.7 L79 33 c.5-2.3 -1.8-4 -3.9-3z'/%3E%3Cpath fill='%23b9def2' d='M43 59 L64 41 L50 62z'/%3E%3C/svg%3E">
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, sans-serif;
@@ -157,6 +157,46 @@
             background: #f8f9fa;
             border-radius: 8px;
             border: 1px solid #e8eaed;
+        }
+
+        /* Uploads list scrolls once it grows past ~5 rows */
+        #progress-list {
+            max-height: 340px;
+            overflow-y: auto;
+        }
+
+        .queue-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 10px;
+            margin: 6px 0;
+            background: #f8f9fa;
+            border: 1px solid #e8eaed;
+            border-radius: 8px;
+            font-size: 13px;
+        }
+
+        .qstate {
+            font-size: 11px;
+            color: #5f6368;
+            background: #eef1f4;
+            border-radius: 4px;
+            padding: 1px 6px;
+        }
+
+        .qbtn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 2px 4px;
+            line-height: 1;
+        }
+
+        .qbtn:active {
+            opacity: .5;
         }
 
         .file-name {
@@ -469,17 +509,17 @@
             <div id="tg-step-phone">
                 <p style="color:#666;font-size:13px;">Enter your phone in international format.</p>
                 <input type="tel" id="tg-phone" class="form-input" placeholder="+8801XXXXXXXXX">
-                <button onclick="tgSendCode()" class="btn-add">Send Code</button>
+                <button id="btn-sendcode" onclick="tgSendCode()" class="btn-add">Send Code</button>
             </div>
             <div id="tg-step-code" style="display:none;">
                 <p style="color:#666;font-size:13px;">Enter the code Telegram sent you.</p>
                 <input type="text" id="tg-code" class="form-input login-input" placeholder="12345" inputmode="numeric">
-                <button onclick="tgVerifyCode()" class="btn-add">Verify</button>
+                <button id="btn-verify" onclick="tgVerifyCode()" class="btn-add">Verify</button>
             </div>
             <div id="tg-step-2fa" style="display:none;">
                 <p style="color:#666;font-size:13px;">Two-step verification is on. Enter your password.</p>
                 <input type="password" id="tg-2fa" class="form-input" placeholder="2FA password">
-                <button onclick="tgVerifyPassword()" class="btn-add">Confirm</button>
+                <button id="btn-2fa" onclick="tgVerifyPassword()" class="btn-add">Confirm</button>
             </div>
             <p id="tg-error" style="color:#d93025;font-size:12px;display:none;"></p>
             <p style="font-size:11px;color:#999;margin-top:10px;">🔒 Your login stays on this server only.</p>
@@ -489,7 +529,19 @@
     <div id="main-dashboard" class="card">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
             <div style="display:flex;align-items:center;gap:8px;">
-                <h2 style="margin:0;">⚙️ TeleDrive</h2>
+                <svg width="30" height="30" viewBox="0 0 100 100" style="flex-shrink:0;">
+                    <defs>
+                        <linearGradient id="tgLogo" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0" stop-color="#2AABEE" />
+                            <stop offset="1" stop-color="#229ED9" />
+                        </linearGradient>
+                    </defs>
+                    <rect width="100" height="100" rx="26" fill="url(#tgLogo)" />
+                    <path fill="#fff"
+                        d="M75 30 L27 51 c-2 .9 -1.8 3.8 .3 4.4 L41 59 L46 73 c.7 2 3.4 2.1 4.3 .3 L57 63 L69 72 c1.6 1.2 3.9 .3 4.3-1.7 L79 33 c.5-2.3 -1.8-4 -3.9-3z" />
+                    <path fill="#b9def2" d="M43 59 L64 41 L50 62z" />
+                </svg>
+                <h2 style="margin:0;">TeleDrive</h2>
                 <span id="ws-dot" class="ws-dot"></span>
             </div>
             <button id="logout-btn" onclick="tgLogout()" class="btn"
@@ -731,7 +783,7 @@
             const d = msg.data;
             if (msg.type === 'snapshot') { renderSnapshot(d); }
             else if (msg.type === 'progress') { renderProgress(d); }
-            else if (msg.type === 'queue') { document.getElementById('queue-count').innerText = d.queued_files; }
+            else if (msg.type === 'queue') { document.getElementById('queue-count').innerText = d.queued_files; refreshSnapshot(); }
             else if (msg.type === 'status') { setStatus(d.status); }
             else if (msg.type === 'auth') { refreshSnapshot(); refreshAccount(); }
             else if (msg.type === 'failed') { renderFailed(d.failed || []); }
@@ -960,24 +1012,49 @@
             return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
                 .then(async r => { const j = await r.json(); if (!r.ok) throw new Error(j.detail || 'Error'); return j; });
         }
+        function btnBusy(id, busy, label) {
+            const b = document.getElementById(id);
+            if (!b) return;
+            if (busy) {
+                b.disabled = true;
+                if (b.dataset.label === undefined) b.dataset.label = b.innerHTML;
+                b.innerHTML = `<span class="spin"></span> ${label || 'Please wait…'}`;
+            } else {
+                b.disabled = false;
+                if (b.dataset.label !== undefined) { b.innerHTML = b.dataset.label; delete b.dataset.label; }
+            }
+        }
         function tgSendCode() {
             const phone = document.getElementById('tg-phone').value.trim();
             if (!phone) { tgError('Enter phone number'); return; }
-            tgHandle('/api/auth/send_code', { phone }).then(() => { document.getElementById('tg-error').style.display = 'none'; tgShowStep('code'); }).catch(e => tgError(e.message));
+            btnBusy('btn-sendcode', true, 'Sending…');
+            tgHandle('/api/auth/send_code', { phone })
+                .then(() => { document.getElementById('tg-error').style.display = 'none'; tgShowStep('code'); })
+                .catch(e => tgError(e.message))
+                .finally(() => btnBusy('btn-sendcode', false));
         }
         function tgVerifyCode() {
             const code = document.getElementById('tg-code').value.trim();
+            btnBusy('btn-verify', true, 'Verifying…');
             tgHandle('/api/auth/verify_code', { code }).then(res => {
                 if (res.status === 'password_needed') { document.getElementById('tg-error').style.display = 'none'; tgShowStep('2fa'); }
                 else tgLoggedIn();
-            }).catch(e => tgError(e.message));
+            }).catch(e => tgError(e.message)).finally(() => btnBusy('btn-verify', false));
         }
         function tgVerifyPassword() {
             const password = document.getElementById('tg-2fa').value;
-            tgHandle('/api/auth/verify_password', { password }).then(tgLoggedIn).catch(e => tgError(e.message));
+            btnBusy('btn-2fa', true, 'Confirming…');
+            tgHandle('/api/auth/verify_password', { password }).then(tgLoggedIn)
+                .catch(e => tgError(e.message)).finally(() => btnBusy('btn-2fa', false));
         }
         function tgLoggedIn() { closeModal('tg-login-modal'); showToast('✅ Telegram connected'); refreshSnapshot(); refreshAccount(); }
-        function tgLogout() { showConfirm('Disconnect Telegram?', 'This logs out the Telegram session on this server. You will need to sign in again with your phone + code to keep uploading.', 'Logout', '#d93025', () => { tgPost('/api/auth/logout', {}).then(() => { showToast('👋 Logged out'); window._tgPrompted = false; refreshSnapshot(); refreshAccount(); openTgLogin(); }); }); }
+        function tgLogout() {
+            showConfirm('Disconnect Telegram?', 'This logs out the Telegram session on this server. You will need to sign in again with your phone + code to keep uploading.', 'Logout', '#d93025', () => {
+                btnBusy('logout-btn', true, 'Logging out…');
+                tgPost('/api/auth/logout', {}).then(() => { showToast('👋 Logged out'); window._tgPrompted = false; refreshSnapshot(); refreshAccount(); openTgLogin(); })
+                    .finally(() => btnBusy('logout-btn', false));
+            });
+        }
         function refreshAccount() {
             apiFetch('/api/auth/status').then(d => {
                 const el = document.getElementById('tg-account');
@@ -996,7 +1073,9 @@
             document.getElementById('auth-warn').style.display = d.auth_state === 'authorized' ? 'none' : 'block';
             if (d.auth_state !== 'authorized' && !window._tgPrompted) { window._tgPrompted = true; openTgLogin(); }
             if (d.group_id) setTargetGroup(d.group_id);
-            renderProgressList(d.progress || []);
+            progressCache = {}; (d.progress || []).forEach(i => progressCache[i.hash] = i);
+            queuedCache = d.queued || [];
+            renderUploads();
             renderFailed(d.failed || []);
             const rl = document.getElementById('recent-list');
             rl.innerHTML = (d.recent_uploads || []).map(f =>
@@ -1007,33 +1086,55 @@
 
         function setStatus(s) { const el = document.getElementById('bot-status'); el.innerText = s; el.className = 'status ' + s; }
 
-        function renderProgress(p) {
-            // upsert single item then re-render the current known set
-            progressCache[p.hash] = p;
-            renderProgressList(Object.values(progressCache));
-        }
         let progressCache = {};
-        function renderProgressList(items) {
-            progressCache = {}; items.forEach(i => progressCache[i.hash] = i);
+        let queuedCache = [];
+        function renderProgress(p) {
+            progressCache[p.hash] = p;
+            renderUploads();
+        }
+        function renderUploads() {
             const box = document.getElementById('progress-list');
-            if (!items.length) { box.innerHTML = "<div style='color:#888;font-size:13px;padding:10px;'>💤 Waiting for files…</div>"; return; }
-            box.innerHTML = items.map(p => `
+            const active = Object.values(progressCache);
+            const activeHashes = new Set(active.map(a => a.hash));
+            const waiting = (queuedCache || []).filter(q => !activeHashes.has(q.hash));
+            if (!active.length && !waiting.length) {
+                box.innerHTML = "<div style='color:#888;font-size:13px;padding:10px;'>💤 Waiting for files…</div>";
+                return;
+            }
+            const activeHtml = active.map(p => `
         <div class="progress-item">
-            <div style="display:flex;justify-content:space-between;align-items:center;">
-                <div class="file-name" style="margin:0;">⬆️ ${p.file_name}</div>
-                <button onclick="cancelItem('${p.hash}')" title="Cancel" style="background:none;border:none;cursor:pointer;font-size:14px;">✖️</button>
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;">
+                <div class="file-name" style="margin:0;min-width:0;overflow:hidden;text-overflow:ellipsis;">⬆️ ${p.file_name}</div>
+                <span style="flex-shrink:0;">
+                    <button onclick="pauseItem('${p.hash}')" title="Pause" class="qbtn">⏸️</button>
+                    <button onclick="cancelItem('${p.hash}')" title="Cancel" class="qbtn">✖️</button>
+                </span>
             </div>
             <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${p.percentage}%;"></div></div>
             <div class="progress-stats">
                 <span>${p.percentage}%</span>
                 <span>
                     <span style="color:#1e8e3e;">${fmtSpeed(p.speed)}</span>
-                    <span style="color:#5f6368;">⏱️ ${fmtETA(p.elapsed)} elapsed</span>
-                    <span style="color:#f29900;">⏳ ${fmtETA(p.eta)} left</span>
+                    <span style="color:#5f6368;">⏱️ ${fmtETA(p.elapsed)}</span>
+                    <span style="color:#f29900;">⏳ ${fmtETA(p.eta)}</span>
                 </span>
                 <span>${fmtBytes(p.current)}/${fmtBytes(p.total)}</span>
             </div>
         </div>`).join('');
+            const waitHtml = waiting.map(q => {
+                const paused = q.state === 'paused';
+                const badge = paused ? '⏸️ Paused' : '⏳ Queued';
+                const toggle = paused
+                    ? `<button onclick="resumeItem('${q.hash}')" title="Resume" class="qbtn">▶️</button>`
+                    : `<button onclick="pauseItem('${q.hash}')" title="Pause" class="qbtn">⏸️</button>`;
+                return `<div class="queue-item">
+                    <span class="file-name" style="margin:0;min-width:0;overflow:hidden;text-overflow:ellipsis;">📄 ${q.name}</span>
+                    <span style="flex-shrink:0;display:flex;align-items:center;gap:6px;">
+                        <span class="qstate">${badge}</span>${toggle}
+                        <button onclick="cancelItem('${q.hash}')" title="Cancel" class="qbtn">✖️</button>
+                    </span></div>`;
+            }).join('');
+            box.innerHTML = activeHtml + waitHtml;
         }
         function renderFailed(items) {
             const box = document.getElementById('failed-box');
@@ -1042,7 +1143,9 @@
             document.getElementById('failed-list').innerHTML = items.map(f =>
                 `<div style="padding:4px 0;border-bottom:1px solid #fad2cf;">📄 ${f.name}<br><span style="color:#a52714;font-size:11px;">${(f.error || '').slice(0, 80)}</span></div>`).join('');
         }
-        function cancelItem(h) { apiFetch('/api/queue/cancel/' + h, { method: 'POST' }); showToast('🚫 Cancelling…'); }
+        function cancelItem(h) { apiFetch('/api/queue/cancel/' + h, { method: 'POST' }).then(() => setTimeout(refreshSnapshot, 300)); showToast('🚫 Cancelling…'); }
+        function pauseItem(h) { apiFetch('/api/queue/pause/' + h, { method: 'POST' }).then(() => setTimeout(refreshSnapshot, 300)); }
+        function resumeItem(h) { apiFetch('/api/queue/resume/' + h, { method: 'POST' }).then(() => setTimeout(refreshSnapshot, 300)); }
         function clearQueue() { showConfirm('Clear the queue?', 'Remove all queued files that have not started uploading yet.', 'Clear', '#5f6368', () => { apiFetch('/api/queue/clear', { method: 'POST' }).then(r => showToast(`🧹 Cleared ${r.cleared}`)); }); }
         function retryFailed() { apiFetch('/api/queue/retry_failed', { method: 'POST' }).then(r => showToast(`🔁 Re-queued ${r.requeued}`)); }
 
