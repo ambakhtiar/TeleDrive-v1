@@ -96,6 +96,47 @@ def get_device_info(file_path):
         return None
 
 
+import re
+
+# Path segments that are system/drive roots — never useful as folder tags.
+_ROOT_JUNK = {"", ".", "..", "c:", "d:", "e:", "f:", "storage", "emulated",
+              "0", "sdcard", "users", "home", "mnt", "media", "run",
+              "uploads_staging"}
+
+
+def _sanitize_tag(part):
+    """Turn a folder name into a clean hashtag token: keep letters/digits,
+    collapse everything else to a single underscore. 'New York (2)' → New_York_2."""
+    token = re.sub(r"[^0-9A-Za-z]+", "_", part).strip("_")
+    return token
+
+
+def folder_hashtags(rel_path):
+    """Build folder hashtags from a relative path, consistently for every
+    upload mode. Returns e.g. for 'DCIM/Images/2026/New York':
+      ['#DCIM', '#Images', '#2026', '#New_York', '#DCIM_Images_2026_New_York']
+    (per-level tags + one combined path tag). Drive/system roots are dropped."""
+    if not rel_path:
+        return []
+    raw = [p for p in rel_path.replace("\\", "/").split("/")]
+    parts = []
+    for p in raw:
+        if p.lower() in _ROOT_JUNK:
+            continue
+        # skip a hex staging-batch dir like '66c60f2fb22b'
+        if re.fullmatch(r"[0-9a-f]{12,}", p):
+            continue
+        tok = _sanitize_tag(p)
+        if tok:
+            parts.append(tok)
+    if not parts:
+        return []
+    tags = [f"#{p}" for p in parts]          # per-level
+    if len(parts) > 1:
+        tags.append("#" + "_".join(parts))   # combined full path
+    return tags
+
+
 def format_metadata(file_name, file_path, stats, rel_path=None, original_mtime=None):
     size_mb = round(stats.st_size / (1024 * 1024), 2)
     ts = original_mtime if original_mtime else original_timestamp(file_path, stats)
@@ -103,10 +144,7 @@ def format_metadata(file_name, file_path, stats, rel_path=None, original_mtime=N
     dt_created = created.strftime("%d %b %Y, %I:%M %p")
     ext = os.path.splitext(file_name)[1]
     tags = [f"#{ext[1:].lower()}"] if ext else ["#unknown"]
-    if rel_path:
-        parts = [p.replace(" ", "_") for p in rel_path.replace("\\", "/").split("/") if p and p != "."]
-        if parts:
-            tags.append("#" + "_".join(parts))
+    tags += folder_hashtags(rel_path)
     caption = f"📄 **{file_name}**\n\n💾 **Size:** {size_mb} MB\n📅 **Created:** {dt_created}"
     device = get_device_info(file_path)
     if device:

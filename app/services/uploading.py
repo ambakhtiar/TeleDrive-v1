@@ -125,7 +125,6 @@ class UploadMixin:
             rel_path = os.path.relpath(os.path.dirname(item["path"]), item["folder_name"])
         except Exception:
             rel_path = None
-        self.log(f"DEBUG: path={item['path']} folder_name={item['folder_name']} rel_path={rel_path}")
         caption = format_metadata(item["name"], item["path"], item["stats"],
                                   rel_path=rel_path, original_mtime=item.get("mtime"))
         start_time = [time.time()]

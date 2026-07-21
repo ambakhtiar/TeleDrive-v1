@@ -250,10 +250,19 @@ class Database:
 
 
 def generate_file_hash(file_path):
+    """Dedup identity of a file: base NAME + size + mtime — NOT the full path.
+
+    Using the basename (not the absolute path) means the same file uploaded
+    from the browser twice — which lands in a different random staging dir each
+    time — still produces the SAME id, so it's correctly detected as a
+    duplicate. A different mtime (an edited/new version) yields a different id,
+    so it uploads again. Matches: same name+size+mtime → skip; changed → upload.
+    """
     try:
         stats = os.stat(file_path)
+        name = os.path.basename(file_path)
         digest = hashlib.md5(
-            f"{file_path}_{stats.st_size}_{stats.st_mtime}".encode()
+            f"{name}_{stats.st_size}_{int(stats.st_mtime)}".encode()
         ).hexdigest()
         return digest, stats
     except Exception:

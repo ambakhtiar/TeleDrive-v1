@@ -66,10 +66,13 @@ DELAY_BETWEEN_UPLOADS = float(os.getenv("DELAY_BETWEEN_UPLOADS", 1.5))
 UPLOAD_RETRY_LIMIT = int(os.getenv("UPLOAD_RETRY_LIMIT", 3))
 SCAN_INTERVAL = int(os.getenv("SCAN_INTERVAL", 3))
 
-# Files larger than this are split into parts (Telegram caps a single file at
-# 2GB free / 4GB Premium). Default ~1.9GB stays under the free cap. Set a small
-# value (e.g. 5242880 = 5MB) to exercise chunking in tests.
-CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", 1900 * 1024 * 1024))
+# Telegram's hard per-file limit. Files at/under this go up as a SINGLE file
+# (one message). Only files LARGER than this are split into parts, because
+# Telegram physically cannot hold >2GB in one message — those parts are
+# transparently reassembled into the whole file on download. This is a
+# capability limit, NOT a tuning knob: don't lower it, or normal files get
+# needlessly split. (Set tiny only to test chunking, e.g. CHUNK_SIZE=5242880.)
+CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", 1950 * 1024 * 1024))  # ~1.95 GB
 
 # How often the SQLite index is snapshotted into the Telegram Backup topic so
 # it survives a lost local DB / a fresh install on another machine. Minutes.
