@@ -29,6 +29,14 @@ async def backup_now():
     return {"status": "success" if ok else "failed"}
 
 
+@router.post("/action/healthcheck")
+async def healthcheck():
+    try:
+        return await get_service().health_check()
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 @router.post("/queue/cancel/{file_hash}")
 def queue_cancel(file_hash: str):
     return get_service().cancel_item(file_hash)

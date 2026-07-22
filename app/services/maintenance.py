@@ -81,3 +81,70 @@ class MaintenanceMixin:
             pass
         except Exception as e:
             self.log(f"⚠️ Size backfill skipped: {e}")
+
+    async def health_check(self, batch=100):
+        """Verify every stored file's Telegram message still exists; flag the
+        ones that were deleted (so the DB stops silently pointing at nothing).
+        Metadata only — no downloads. Returns {checked, missing, ok}."""
+        if self.auth_state != "authorized":
+            raise ValueError("Log in to Telegram first.")
+        refs = self.db.all_message_refs()
+        if not refs:
+            return {"checked": 0, "missing": 0, "ok": 0}
+
+        # group single-message files by chat for batched lookups
+        by_chat = {}
+        chunked = []
+        for r in refs:
+            gid = int(r["chat_id"]) if r["chat_id"] else config.active_group_id()
+            if not gid:
+                continue
+            if r["chunked"]:
+                chunked.append((r["hash"], gid))
+            else:
+                by_chat.setdefault(gid, {})[int(r["message_id"])] = r["hash"]
+
+        checked = missing = 0
+        self.log(f"🩺 Health check: verifying {len(refs)} file(s)…")
+        for gid, hash_by_id in by_chat.items():
+            try:
+                entity = await self._resolve_entity(gid)
+            except Exception:
+                continue
+            ids = list(hash_by_id.keys())
+            for i in range(0, len(ids), batch):
+                chunk = ids[i:i + batch]
+                try:
+                    msgs = await self.client.get_messages(entity, ids=chunk)
+                except errors.FloodWaitError as e:
+                    await asyncio.sleep(e.seconds + 2)
+                    continue
+                except Exception:
+                    await asyncio.sleep(2)
+                    continue
+                present = {m.id for m in msgs if m and getattr(m, "media", None)}
+                for mid, h in [(mid, hash_by_id[mid]) for mid in chunk]:
+                    checked += 1
+                    gone = mid not in present
+                    self.db.set_missing(h, gone)
+                    if gone:
+                        missing += 1
+                await asyncio.sleep(1)
+
+        # chunked files: missing if any part's message is gone
+        for h, gid in chunked:
+            checked += 1
+            try:
+                entity = await self._resolve_entity(gid)
+                parts = self.db.get_chunks(h)
+                ids = [p["message_id"] for p in parts]
+                msgs = await self.client.get_messages(entity, ids=ids)
+                gone = any(not m or not getattr(m, "media", None) for m in msgs)
+            except Exception:
+                gone = False  # don't falsely flag on a transient error
+            self.db.set_missing(h, gone)
+            if gone:
+                missing += 1
+
+        self.log(f"🩺 Health check done — {missing} missing of {checked}.")
+        return {"checked": checked, "missing": missing, "ok": checked - missing}

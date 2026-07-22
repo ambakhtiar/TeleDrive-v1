@@ -25,6 +25,7 @@ class Database:
             ("chunked", "INTEGER"),   # 1 if split across multiple messages
             ("total_parts", "INTEGER"),
             ("original_mtime", "REAL"),  # original file creation timestamp for download restore
+            ("missing", "INTEGER"),      # 1 if the Telegram message was deleted (health-check)
         ):
             try:
                 self.conn.execute(f"ALTER TABLE uploads ADD COLUMN {col} {decl}")
@@ -198,6 +199,23 @@ class Database:
             )
             self.conn.commit()
 
+    def all_message_refs(self):
+        """(hash, message_id, chat_id, chunked) for every downloadable upload —
+        used by the health-check to confirm the messages still exist."""
+        with self._lock:
+            rows = self.conn.execute(
+                "SELECT file_hash, message_id, chat_id, chunked FROM uploads "
+                "WHERE message_id IS NOT NULL"
+            ).fetchall()
+        return [{"hash": r[0], "message_id": r[1], "chat_id": r[2],
+                 "chunked": r[3]} for r in rows]
+
+    def set_missing(self, file_hash, value):
+        with self._lock:
+            self.conn.execute("UPDATE uploads SET missing=? WHERE file_hash=?",
+                              (1 if value else 0, file_hash))
+            self.conn.commit()
+
     def total_count(self):
         with self._lock:
             return self.conn.execute("SELECT COUNT(*) FROM uploads").fetchone()[0]
@@ -229,13 +247,13 @@ class Database:
         where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
         order = "ASC" if str(sort).lower() == "asc" else "DESC"
         sql = (f"SELECT file_name, uploaded_at, message_link, file_hash, message_id, "
-               f"size, duration FROM uploads {where} "
+               f"size, duration, missing FROM uploads {where} "
                f"ORDER BY uploaded_at {order} LIMIT ? OFFSET ?")
         with self._lock:
             rows = self.conn.execute(sql, (*params, limit, offset)).fetchall()
         return [{"name": r[0], "time": r[1], "link": r[2], "hash": r[3],
                  "downloadable": r[4] is not None, "size": r[5],
-                 "duration": r[6]} for r in rows]
+                 "duration": r[6], "missing": bool(r[7])} for r in rows]
 
     def distinct_extensions(self):
         with self._lock:

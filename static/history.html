@@ -37,6 +37,7 @@
         .meta { font-size:11px; color:#80868b; }
         .size-badge { font-size:11px; color:#5f6368; background:#eef1f4; border-radius:4px; padding:1px 6px; margin-left:6px; }
         .dur-badge { font-size:11px; color:#8a6d00; background:#fff3cd; border-radius:4px; padding:1px 6px; margin-left:6px; }
+        .miss-badge { font-size:11px; color:#a52714; background:#fce8e6; border-radius:4px; padding:1px 6px; margin-left:6px; }
         #toast { position:fixed; bottom:-100px; left:50%; transform:translateX(-50%); color:#fff; padding:12px 24px; border-radius:8px; font-weight:bold; font-size:13px; z-index:9999; transition:bottom .4s; box-shadow:0 4px 12px rgba(0,0,0,.2); max-width:90%; text-align:center; }
 
         @media (max-width: 540px) {
@@ -114,8 +115,8 @@ async function loadMore(){
         ul.innerHTML = '<div class="empty">No uploads match these filters.</div>';
     } else {
         ul.insertAdjacentHTML('beforeend', data.map(f=>`
-            <li><div style="min-width:0;"><span class="fname">📄 ${f.name}</span>
-              <span class="meta">${f.time}${f.size?`<span class="size-badge">${fmtSize(f.size)}</span>`:''}${f.duration?`<span class="dur-badge">⏱️ ${fmtDur(f.duration)}</span>`:''}</span></div>
+            <li${f.missing?' style="opacity:.6;"':''}><div style="min-width:0;"><span class="fname">📄 ${f.name}</span>
+              <span class="meta">${f.time}${f.size?`<span class="size-badge">${fmtSize(f.size)}</span>`:''}${f.duration?`<span class="dur-badge">⏱️ ${fmtDur(f.duration)}</span>`:''}${f.missing?'<span class="miss-badge">⚠️ missing</span>':''}</span></div>
             <div class="row-actions">
               ${f.downloadable?`<button class="act dl" title="Download" onclick="doDownload('${f.hash}', this)">⬇️</button>`:''}
               ${f.link?`<a href="${f.link}" target="_blank" class="act" title="Open in Telegram">🔗</a>`:''}

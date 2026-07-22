@@ -782,6 +782,7 @@
                 <label class="switch"><input type="checkbox" id="autodel-toggle" onchange="confirmAutoDelete()"><span class="slider danger"></span></label>
             </div>
             <button class="btn btn-ghost btn-sm btn-block" style="margin-top:12px;" onclick="backupNow()">🗄️ Back up database now</button>
+            <button id="hc-btn" class="btn btn-ghost btn-sm btn-block" style="margin-top:8px;" onclick="healthCheck()">🩺 Verify files (health check)</button>
         </details>
 
         <!-- console -->
@@ -1135,6 +1136,13 @@
             } else saveSettings();
         }
         function backupNow() { showToast('🗄️ Backing up…'); apiFetch('/api/action/backup_now', { method: 'POST' }).then(r => showToast(r.status === 'success' ? '🗄️ Backup sent' : '⚠️ Backup failed', r.status !== 'success')); }
+        function healthCheck() {
+            btnBusy('hc-btn', true, 'Checking…');
+            fetch('/api/action/healthcheck', { method: 'POST' }).then(async r => {
+                const j = await r.json(); if (!r.ok) throw new Error(j.detail || 'Failed');
+                showToast(j.missing ? `🩺 ${j.missing} missing of ${j.checked}` : `🩺 All ${j.checked} files OK`, j.missing > 0);
+            }).catch(e => showToast(e.message, true)).finally(() => btnBusy('hc-btn', false));
+        }
 
         // ---------- Telegram login ----------
         function openTgLogin() { tgShowStep('phone'); document.getElementById('tg-error').style.display = 'none'; document.getElementById('tg-login-modal').classList.add('open'); }
