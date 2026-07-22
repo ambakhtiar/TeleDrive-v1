@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+  <defs>
+    <linearGradient id="protonAmethyst" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#d946ef" />
+      <stop offset="30%" stop-color="#8b5cf6" />
+      <stop offset="70%" stop-color="#4c1d95" />
+      <stop offset="100%" stop-color="#1e0b3b" />
+    </linearGradient>
+    <linearGradient id="laserCyan" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#06b6d4" />
+      <stop offset="50%" stop-color="#3b82f6" />
+      <stop offset="100%" stop-color="#6366f1" />
+    </linearGradient>
+    <linearGradient id="liquidTitanium" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="35%" stop-color="#e2e8f0" />
+      <stop offset="50%" stop-color="#ffffff" />
+      <stop offset="65%" stop-color="#cbd5e1" />
+      <stop offset="100%" stop-color="#64748b" />
+    </linearGradient>
+    <filter id="hyperGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="12" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+  <g>
+    <path d="M 60 20 H 440 C 473 20 500 47 500 80 V 340 C 500 373 473 400 440 400 H 130 L 40 470 V 400 H 60 C 27 400 0 373 0 340 V 80 C 0 47 27 20 60 20 Z" 
+          fill="url(#protonAmethyst)" />
+    <g opacity="0.1" stroke="#ffffff" stroke-width="2.5" fill="none">
+      <path d="M 60 100 H 440 M 60 180 H 440 M 60 260 H 440 M 60 340 H 440" />
+      <path d="M 120 20 V 400 M 250 20 V 400 M 380 20 V 400" />
+    </g>
+    <circle cx="250" cy="210" r="90" fill="url(#laserCyan)" opacity="0.3" filter="url(#hyperGlow)" />
+    <g filter="url(#hyperGlow)">
+      <path d="M 260 70 L 120 300 L 220 260 Z" fill="#1e0b3b" opacity="0.75" />
+      <path d="M 260 70 L 400 300 L 260 260 Z" fill="url(#laserCyan)" opacity="0.95" />
+      <path d="M 260 70 L 295 260 L 260 240 L 225 260 Z" fill="url(#liquidTitanium)" />
+      <path d="M 260 70 L 400 300 L 295 260 Z" fill="#ffffff" opacity="0.25" />
+    </g>
+  </g>
+</svg>

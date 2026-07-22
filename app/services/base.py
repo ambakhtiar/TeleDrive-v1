@@ -95,6 +95,14 @@ class UploaderBase:
             self.auth_state = "unauthorized"
             self.log(f"⚠️ Could not reach Telegram yet ({e}). Web UI still available.")
 
+        # F10: before anything touches the DB, adopt the Telegram backup if the
+        # local DB is missing/older (fresh clone, new machine, lost DB).
+        if self.auth_state == "authorized":
+            try:
+                await self._maybe_restore_db()
+            except Exception as e:
+                self.log(f"⚠️ Startup restore check failed: {e}")
+
         # NOTE: the legacy auto-watch rescanner is intentionally NOT started.
         # Uploads are now explicit via "Add Files / Folder" so nothing uploads
         # by surprise.
