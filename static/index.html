@@ -1,308 +1,309 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
+    <meta charset="utf-8">
     <title>TeleDrive — Telegram Cloud Uploader</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description"
-        content="Upload local folders or device files to Telegram groups & topics, with live progress and smart routing.">
+    <meta name="description" content="Upload local folders or device files to Telegram, organized into topics.">
     <meta name="theme-color" content="#229ED9">
-    <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
+    <link rel="icon"
+        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%232AABEE'/%3E%3Cstop offset='1' stop-color='%23229ED9'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' rx='26' fill='url(%23g)'/%3E%3Cpath fill='%23fff' d='M75 30 L27 51 c-2 .9 -1.8 3.8 .3 4.4 L41 59 L46 73 c.7 2 3.4 2.1 4.3 .3 L57 63 L69 72 c1.6 1.2 3.9 .3 4.3-1.7 L79 33 c.5-2.3 -1.8-4 -3.9-3z'/%3E%3Cpath fill='%23b9def2' d='M43 59 L64 41 L50 62z'/%3E%3C/svg%3E">
     <style>
+        :root {
+            --brand: #229ED9;
+            --brand-2: #2AABEE;
+            --bg: #f4f6f8;
+            --surface: #ffffff;
+            --surface-2: #f7f9fb;
+            --border: #e6e9ee;
+            --text: #1a1f24;
+            --muted: #71787f;
+            --green: #1e8e3e;
+            --green-bg: #e6f4ea;
+            --red: #d93025;
+            --red-bg: #fce8e6;
+            --amber: #e8890c;
+            --amber-bg: #fff3cd;
+            --radius: 14px;
+            --radius-sm: 9px;
+            --shadow: 0 1px 3px rgba(16, 24, 40, .06), 0 8px 24px rgba(16, 24, 40, .06);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #0f1418;
+                --surface: #171d23;
+                --surface-2: #1e262d;
+                --border: #2a333b;
+                --text: #e7ecf0;
+                --muted: #97a1ab;
+                --green-bg: #14351f;
+                --red-bg: #3a1b18;
+                --amber-bg: #3a3016;
+                --shadow: 0 1px 3px rgba(0, 0, 0, .4), 0 8px 24px rgba(0, 0, 0, .3);
+            }
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: 'Segoe UI', Tahoma, sans-serif;
-            padding: 15px;
-            background: #f0f2f5;
-            color: #333;
+            margin: 0;
+            font-family: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            font-size: 14px;
+            line-height: 1.5;
         }
 
-        .card {
-            background: #fff;
-            padding: 25px;
-            border-radius: 12px;
-            box-shadow: 0 8px 16px rgba(0, 0, 0, .05);
-            max-width: 520px;
-            margin: auto;
+        .app {
+            max-width: 640px;
+            margin: 0 auto;
+            padding: 16px 16px 60px;
         }
 
-        h2,
-        h3 {
-            color: #1a73e8;
-        }
-
-        h2 {
-            text-align: center;
-            margin-top: 0;
-        }
-
-        h3 {
-            font-size: 15px;
-            border-bottom: 1px solid #eee;
-            padding-bottom: 5px;
-            margin-top: 25px;
-        }
-
-        .status {
-            font-weight: bold;
-            text-transform: uppercase;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-        }
-
-        .running {
-            background: #e6f4ea;
-            color: #1e8e3e;
-        }
-
-        .paused {
-            background: #fce8e6;
-            color: #d93025;
-        }
-
-        .stats-container {
+        /* ---- top bar ---- */
+        .topbar {
             display: flex;
-            justify-content: space-between;
-            background: #f8f9fa;
-            padding: 10px 15px;
-            border-radius: 8px;
-            margin-bottom: 15px;
-            border: 1px solid #e8eaed;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 2px 16px;
         }
 
-        .stat-box {
-            text-align: center;
+        .topbar .logo {
+            width: 34px;
+            height: 34px;
+            flex-shrink: 0;
+        }
+
+        .topbar h1 {
+            font-size: 19px;
+            margin: 0;
+            font-weight: 700;
+            letter-spacing: -.2px;
+        }
+
+        .ws-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--red);
+            transition: background .3s;
+        }
+
+        .ws-dot.on {
+            background: var(--green);
+        }
+
+        .spacer {
             flex: 1;
         }
 
-        .stat-value {
-            font-size: 18px;
-            font-weight: bold;
+        /* ---- cards & sections ---- */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 16px;
+            margin-bottom: 14px;
         }
 
-        .stat-label {
-            font-size: 11px;
-            color: #5f6368;
+        .section-title {
+            font-size: 12px;
+            font-weight: 700;
             text-transform: uppercase;
+            letter-spacing: .6px;
+            color: var(--muted);
+            margin: 0 0 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
         }
 
+        /* ---- chips / badges ---- */
+        .chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 5px 10px;
+            border-radius: 999px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            color: var(--muted);
+        }
+
+        .status {
+            font-weight: 700;
+            text-transform: capitalize;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+        }
+
+        .status.running {
+            background: var(--green-bg);
+            color: var(--green);
+        }
+
+        .status.paused {
+            background: var(--red-bg);
+            color: var(--red);
+        }
+
+        /* ---- stat tiles ---- */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        .tile {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            text-align: center;
+            box-shadow: var(--shadow);
+        }
+
+        .tile .v {
+            font-size: 20px;
+            font-weight: 800;
+            letter-spacing: -.5px;
+        }
+
+        .tile .l {
+            font-size: 10.5px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            margin-top: 2px;
+        }
+
+        /* ---- buttons ---- */
         .btn {
-            padding: 12px;
+            appearance: none;
             border: none;
-            border-radius: 6px;
-            color: #fff;
-            cursor: pointer;
-            margin: 5px;
-            font-weight: bold;
-            width: 47%;
-        }
-
-        .btn-pause {
-            background: #d93025;
-        }
-
-        .btn-resume {
-            background: #1e8e3e;
-        }
-
-        .btn-history {
-            background: #5f6368;
-            width: 100%;
-        }
-
-        .btn-report {
-            background: #f29900;
-            width: 100%;
-        }
-
-        .form-wrapper {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
-            border: 1px solid #e8eaed;
-            margin-bottom: 15px;
-        }
-
-        .form-input {
-            padding: 12px;
-            border: 1px solid #ccc;
-            border-radius: 6px;
+            border-radius: var(--radius-sm);
+            padding: 11px 16px;
             font-size: 14px;
-            width: 100%;
-            box-sizing: border-box;
-            margin-top: 8px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            transition: filter .15s, opacity .15s, background .15s;
         }
 
-        .row-group {
+        .btn:active {
+            filter: brightness(.94);
+        }
+
+        .btn:disabled {
+            opacity: .55;
+            cursor: progress;
+        }
+
+        .btn-primary {
+            background: var(--brand);
+            color: #fff;
+        }
+
+        .btn-block {
+            width: 100%;
+        }
+
+        .btn-lg {
+            padding: 14px 18px;
+            font-size: 15px;
+            border-radius: var(--radius);
+        }
+
+        .btn-ghost {
+            background: var(--surface-2);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        .btn-danger {
+            background: var(--red-bg);
+            color: var(--red);
+        }
+
+        .btn-sm {
+            padding: 7px 11px;
+            font-size: 12.5px;
+        }
+
+        .btn-row {
             display: flex;
             gap: 10px;
         }
 
-        .btn-add {
-            background: #1a73e8;
-            color: #fff;
-            border: none;
-            border-radius: 6px;
-            padding: 12px;
-            font-weight: bold;
-            cursor: pointer;
+        .btn-row .btn {
+            flex: 1;
+        }
+
+        /* ---- inputs ---- */
+        .input,
+        select.input {
             width: 100%;
-            margin-top: 10px;
-        }
-
-        .progress-item {
-            margin: 10px 0;
-            padding: 10px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            border: 1px solid #e8eaed;
-        }
-
-        /* Uploads list scrolls once it grows past ~5 rows */
-        #progress-list {
-            max-height: 340px;
-            overflow-y: auto;
-        }
-
-        .queue-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 6px;
-            padding: 8px 10px;
-            margin: 6px 0;
-            background: #f8f9fa;
-            border: 1px solid #e8eaed;
-            border-radius: 8px;
-            font-size: 13px;
-        }
-
-        .qstate {
-            font-size: 11px;
-            color: #5f6368;
-            background: #eef1f4;
-            border-radius: 4px;
-            padding: 1px 6px;
-        }
-
-        .qbtn {
-            background: none;
-            border: none;
-            cursor: pointer;
+            padding: 11px 12px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
             font-size: 14px;
-            padding: 2px 4px;
-            line-height: 1;
+            font-family: inherit;
+            background: var(--surface);
+            color: var(--text);
+            margin-top: 8px;
         }
 
-        .qbtn:active {
-            opacity: .5;
+        .input:focus,
+        select.input:focus {
+            outline: none;
+            border-color: var(--brand);
+            box-shadow: 0 0 0 3px rgba(34, 158, 217, .15);
         }
 
-        .file-name {
-            font-weight: bold;
-            font-size: 13px;
-            margin-bottom: 6px;
-            word-break: break-all;
-            color: #1a73e8;
-        }
-
-        .progress-bar-bg {
-            background: #e0e0e0;
-            height: 10px;
-            border-radius: 6px;
-            overflow: hidden;
-            margin-bottom: 6px;
-        }
-
-        .progress-bar-fill {
-            background: linear-gradient(90deg, #1a73e8, #4285f4);
-            height: 100%;
-            width: 0;
-            transition: width .3s;
-        }
-
-        .progress-stats {
-            display: flex;
-            justify-content: space-between;
-            font-size: 11px;
-            color: #5f6368;
-            font-family: monospace;
-            font-weight: bold;
-        }
-
-        .terminal-box {
-            background: #1e1e1e;
-            color: #fff;
-            font-family: 'Courier New', monospace;
-            font-size: 11px;
-            padding: 15px;
-            border-radius: 8px;
-            height: 200px;
-            overflow-y: auto;
-            white-space: pre-wrap;
-            margin-top: 10px;
-            line-height: 1.4;
-        }
-
-        ul {
-            list-style: none;
-            padding: 0;
-            margin-top: 10px;
-        }
-
-        li {
-            background: #f8f9fa;
-            border-bottom: 1px solid #e8eaed;
-            padding: 10px;
-            font-size: 13px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .time {
-            font-size: 11px;
-            color: #80868b;
-        }
-
-        .msg-link {
-            color: #1a73e8;
-            text-decoration: none;
-            font-weight: bold;
+        label.fld {
             font-size: 12px;
-            padding-left: 10px;
+            color: var(--muted);
+            font-weight: 600;
+            display: block;
+            margin-top: 10px;
         }
 
-        .settings-group {
-            background: #e8f0fe;
-            padding: 15px;
-            border-radius: 8px;
-            border: 1px solid #cce0ff;
-            margin-top: 20px;
-        }
-
-        .settings-bar {
+        /* ---- toggles ---- */
+        .row {
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            margin-bottom: 12px;
+            justify-content: space-between;
+            padding: 9px 0;
+            border-bottom: 1px solid var(--border);
         }
 
-        .settings-bar:last-child {
-            margin-bottom: 0;
+        .row:last-child {
+            border-bottom: none;
         }
 
-        .settings-text {
-            font-size: 13px;
-            font-weight: bold;
-            color: #1a73e8;
+        .row .lbl {
+            font-size: 13.5px;
+            font-weight: 500;
         }
 
         .switch {
             position: relative;
-            display: inline-block;
-            width: 40px;
-            height: 22px;
+            width: 42px;
+            height: 24px;
+            flex-shrink: 0;
         }
 
         .switch input {
@@ -313,129 +314,368 @@
 
         .slider {
             position: absolute;
-            cursor: pointer;
             inset: 0;
-            background: #ccc;
-            transition: .4s;
-            border-radius: 22px;
+            background: #c4ccd4;
+            border-radius: 999px;
+            cursor: pointer;
+            transition: .25s;
         }
 
         .slider:before {
-            position: absolute;
             content: "";
-            height: 16px;
-            width: 16px;
+            position: absolute;
+            height: 18px;
+            width: 18px;
             left: 3px;
-            bottom: 3px;
+            top: 3px;
             background: #fff;
-            transition: .4s;
             border-radius: 50%;
+            transition: .25s;
         }
 
         input:checked+.slider {
-            background: #1a73e8;
+            background: var(--brand);
         }
 
         input:checked+.slider.danger {
-            background: #d93025;
+            background: var(--red);
         }
 
         input:checked+.slider:before {
             transform: translateX(18px);
         }
 
-        .danger-zone {
-            margin-top: 15px;
-            padding: 15px;
-            border: 1px solid #fad2cf;
-            border-radius: 8px;
-            background: #fce8e6;
+        /* ---- uploads / queue ---- */
+        #uploads {
+            max-height: 360px;
+            overflow-y: auto;
+            margin: -4px;
+            padding: 4px;
         }
 
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, .8);
-            z-index: 1000;
-            justify-content: center;
-            align-items: center;
-            padding: 15px;
-            box-sizing: border-box;
+        .up {
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 10px 12px;
+            margin: 8px 0;
         }
 
-        .modal-content {
-            background: #fff;
-            padding: 20px;
-            border-radius: 12px;
-            width: 100%;
-            max-width: 500px;
-            max-height: 85vh;
+        .up .head {
             display: flex;
-            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
         }
 
-        .modal-header {
+        .fname {
+            font-weight: 600;
+            font-size: 13px;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .bar {
+            background: var(--border);
+            height: 8px;
+            border-radius: 999px;
+            overflow: hidden;
+            margin: 8px 0 6px;
+        }
+
+        .bar > i {
+            display: block;
+            height: 100%;
+            width: 0;
+            background: linear-gradient(90deg, var(--brand-2), var(--brand));
+            transition: width .3s;
+        }
+
+        .up .meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: var(--muted);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .qbtn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 15px;
+            padding: 3px 5px;
+            border-radius: 6px;
+            line-height: 1;
+        }
+
+        .qbtn:active {
+            background: var(--border);
+        }
+
+        .qstate {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--muted);
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            padding: 2px 8px;
+        }
+
+        .empty {
+            text-align: center;
+            color: var(--muted);
+            padding: 22px;
+            font-size: 13px;
+        }
+
+        /* ---- console ---- */
+        .console {
+            background: #0d1117;
+            color: #d6dee6;
+            font-family: 'Cascadia Code', 'Courier New', monospace;
+            font-size: 11px;
+            padding: 12px;
+            border-radius: var(--radius-sm);
+            height: 170px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            line-height: 1.45;
+        }
+
+        details.card > summary {
+            list-style: none;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        details.card > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details.card[open] > summary {
+            margin-bottom: 12px;
+        }
+
+        summary .caret {
+            transition: transform .2s;
+            color: var(--muted);
+        }
+
+        details[open] summary .caret {
+            transform: rotate(90deg);
+        }
+
+        ul.list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        ul.list li {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 1px solid #eee;
-            padding-bottom: 10px;
-            margin-bottom: 15px;
+            gap: 8px;
+            padding: 9px 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
         }
 
-        .search-box {
+        ul.list li:last-child {
+            border-bottom: none;
+        }
+
+        .muted {
+            color: var(--muted);
+            font-size: 11px;
+        }
+
+        .link {
+            color: var(--brand);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 12px;
+        }
+
+        /* ---- banner ---- */
+        #banner {
+            display: none;
+            align-items: center;
+            gap: 10px;
+            background: rgba(34, 158, 217, .1);
+            border: 1px solid rgba(34, 158, 217, .3);
+            color: var(--brand);
+            border-radius: var(--radius-sm);
+            padding: 11px 14px;
+            font-weight: 600;
+            font-size: 13px;
+            margin-bottom: 14px;
+        }
+
+        /* ---- modal ---- */
+        .overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(10, 15, 20, .55);
+            backdrop-filter: blur(3px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 14px;
+        }
+
+        .overlay.open {
+            display: flex;
+        }
+
+        .modal {
+            background: var(--surface);
+            border-radius: 18px;
             width: 100%;
-            padding: 12px;
-            border: 1px solid #ccc;
-            border-radius: 6px;
-            margin-bottom: 15px;
-            box-sizing: border-box;
+            max-width: 460px;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, .35);
         }
 
-        .history-list {
+        .modal .mhead {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 18px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .modal .mhead h3 {
+            margin: 0;
+            font-size: 16px;
+        }
+
+        .modal .mbody {
+            padding: 18px;
             overflow-y: auto;
-            flex-grow: 1;
         }
 
-        .login-box {
+        .x {
+            background: var(--surface-2);
+            border: none;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 15px;
+            color: var(--muted);
+        }
+
+        /* ---- stepper ---- */
+        .steps {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 16px;
+        }
+
+        .steps .st {
+            flex: 1;
+            height: 4px;
+            border-radius: 999px;
+            background: var(--border);
+        }
+
+        .steps .st.active {
+            background: var(--brand);
+        }
+
+        .seg {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .seg button {
+            flex: 1;
+            padding: 9px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+            background: var(--surface-2);
+            color: var(--text);
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .seg button.on {
+            background: var(--brand);
+            color: #fff;
+            border-color: var(--brand);
+        }
+
+        .dropzone {
+            border: 2px dashed var(--border);
+            border-radius: var(--radius-sm);
+            padding: 20px;
             text-align: center;
-            max-width: 320px;
+            color: var(--muted);
+            font-size: 13px;
         }
 
-        .login-input {
-            font-size: 24px;
-            letter-spacing: 5px;
-            text-align: center;
-            font-weight: bold;
+        .dropzone.hover {
+            border-color: var(--brand);
+            background: rgba(34, 158, 217, .06);
         }
 
+        .info-box {
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 10px 12px;
+            font-size: 12.5px;
+        }
+
+        /* ---- toast ---- */
         #toast {
             position: fixed;
-            bottom: -100px;
             left: 50%;
+            bottom: -120px;
             transform: translateX(-50%);
+            background: #202b36;
             color: #fff;
-            padding: 12px 24px;
-            border-radius: 8px;
-            font-weight: bold;
+            padding: 12px 22px;
+            border-radius: 999px;
+            font-weight: 600;
             font-size: 13px;
-            z-index: 9999;
-            transition: bottom .4s;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, .2);
-            max-width: 90%;
+            z-index: 2000;
+            transition: bottom .35s cubic-bezier(.2, .8, .2, 1);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, .3);
+            max-width: 92%;
             text-align: center;
         }
 
         .spin {
             display: inline-block;
-            width: 12px;
-            height: 12px;
-            border: 2px solid rgba(255, 255, 255, .4);
+            width: 13px;
+            height: 13px;
+            border: 2px solid rgba(255, 255, 255, .35);
             border-top-color: #fff;
             border-radius: 50%;
             animation: sp .7s linear infinite;
             vertical-align: middle;
+        }
+
+        .spin.dark {
+            border-color: rgba(34, 158, 217, .3);
+            border-top-color: var(--brand);
         }
 
         @keyframes sp {
@@ -443,332 +683,328 @@
                 transform: rotate(360deg);
             }
         }
-
-        button:disabled {
-            opacity: .7;
-            cursor: progress;
-        }
-
-        #main-dashboard {
-            display: block;
-        }
-
-        .ws-dot {
-            display: inline-block;
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #d93025;
-            margin-left: 6px;
-        }
-
-        .ws-dot.on {
-            background: #1e8e3e;
-        }
-
-        @media (max-width: 540px) {
-            .card { padding: 10px; }
-            .stats-container { flex-wrap: wrap; gap: 6px; }
-            .stat-box { flex: 1 1 100%; }
-            .stats-container > :not(.stat-box) { display: none; }
-            .btn { width: 100%; }
-            .progress-stats { flex-wrap: wrap; gap: 4px; font-size: 10px; }
-            .modal-content { padding: 10px; }
-            .modal-overlay { padding: 8px; }
-            .row-group { flex-direction: column; }
-            .settings-bar { flex-wrap: wrap; gap: 6px; }
-            #recent-list li { flex-direction: column; align-items: flex-start; gap: 4px; }
-            #recent-list li > span:first-child { max-width: 100%; white-space: normal; word-break: break-all; }
-            #drop-zone .btn { display: block; width: 100%; margin: 6px 0; }
-            #confirm-modal .modal-content > div:last-child { flex-direction: column; }
-            #confirm-modal .modal-content > div:last-child button { width: 100%; }
-        }
     </style>
 </head>
 
 <body>
     <div id="toast">Notification</div>
 
-    <div id="confirm-modal" class="modal-overlay">
-        <div class="modal-content" style="max-width:340px;text-align:center;">
-            <h3 id="confirm-title" style="margin-top:0;color:#d93025;">Confirm</h3>
-            <p id="confirm-body" style="font-size:14px;color:#555;line-height:1.5;"></p>
-            <div style="display:flex;gap:10px;margin-top:20px;">
-                <button onclick="hideConfirm()"
-                    style="flex:1;padding:12px;border-radius:6px;border:1px solid #ccc;background:#fff;font-weight:bold;cursor:pointer;">Cancel</button>
-                <button id="confirm-ok"
-                    style="flex:1;padding:12px;border-radius:6px;border:none;color:#fff;font-weight:bold;cursor:pointer;">OK</button>
+    <div class="app">
+        <div class="topbar">
+            <svg class="logo" viewBox="0 0 100 100">
+                <defs>
+                    <linearGradient id="lg" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0" stop-color="#2AABEE" />
+                        <stop offset="1" stop-color="#229ED9" />
+                    </linearGradient>
+                </defs>
+                <rect width="100" height="100" rx="26" fill="url(#lg)" />
+                <path fill="#fff"
+                    d="M75 30 L27 51 c-2 .9 -1.8 3.8 .3 4.4 L41 59 L46 73 c.7 2 3.4 2.1 4.3 .3 L57 63 L69 72 c1.6 1.2 3.9 .3 4.3-1.7 L79 33 c.5-2.3 -1.8-4 -3.9-3z" />
+                <path fill="#b9def2" d="M43 59 L64 41 L50 62z" />
+            </svg>
+            <h1>TeleDrive</h1>
+            <span id="ws-dot" class="ws-dot" title="Live connection"></span>
+            <span class="spacer"></span>
+            <span id="status" class="status running">…</span>
+            <button id="logout-btn" class="btn btn-ghost btn-sm" onclick="tgLogout()" style="display:none;">🚪</button>
+        </div>
+
+        <!-- not-connected banner -->
+        <div id="auth-warn" class="card" style="display:none;border-color:rgba(232,137,12,.4);background:var(--amber-bg);">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+                <div style="font-size:13.5px;font-weight:600;color:var(--amber);">🔑 Not connected to Telegram</div>
+                <button class="btn btn-primary btn-sm" onclick="openTgLogin()">Connect</button>
+            </div>
+        </div>
+
+        <!-- target group -->
+        <div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 16px;">
+            <div style="min-width:0;">
+                <div class="muted">Target group</div>
+                <div id="target-group" style="font-weight:600;font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">not set</div>
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="openGroupModal()">⚙️ Setup</button>
+        </div>
+
+        <div id="tg-account" class="muted" style="display:none;margin:-6px 4px 12px;color:var(--green);"></div>
+
+        <div class="stats">
+            <div class="tile"><div class="v" id="total-count" style="color:var(--brand);">0</div><div class="l">Uploaded</div></div>
+            <div class="tile"><div class="v" id="queue-count" style="color:var(--amber);">0</div><div class="l">In queue</div></div>
+            <div class="tile"><div class="v" id="active-count" style="color:var(--green);">0</div><div class="l">Active</div></div>
+        </div>
+
+        <button class="btn btn-primary btn-block btn-lg" onclick="openAddModal()" style="margin-bottom:14px;">
+            ＋ Add Files / Folder
+        </button>
+
+        <div id="banner">
+            <span class="spin"></span><span id="banner-text">Working…</span>
+        </div>
+
+        <!-- uploads -->
+        <div class="card">
+            <div class="section-title">
+                <span>Uploads</span>
+                <button class="btn btn-ghost btn-sm" onclick="clearQueue()">🧹 Clear</button>
+            </div>
+            <div id="uploads">
+                <div class="empty">💤 Nothing uploading right now.</div>
+            </div>
+            <div id="failed-box" style="display:none;margin-top:12px;background:var(--red-bg);border:1px solid rgba(217,48,37,.25);border-radius:var(--radius-sm);padding:10px 12px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                    <b style="color:var(--red);font-size:13px;">⚠️ Failed</b>
+                    <button class="btn btn-danger btn-sm" onclick="retryFailed()">🔁 Retry all</button>
+                </div>
+                <div id="failed-list" style="font-size:12px;max-height:130px;overflow-y:auto;"></div>
+            </div>
+        </div>
+
+        <div class="btn-row" style="margin-bottom:14px;">
+            <button class="btn btn-ghost" onclick="location.href='/history'">🔍 History</button>
+            <button class="btn btn-ghost" onclick="openReports()">📊 Reports</button>
+        </div>
+
+        <!-- settings -->
+        <details class="card">
+            <summary>⚙️ Settings <span class="caret">▸</span></summary>
+            <div class="row"><span class="lbl">🚀 Turbo mode (parallel upload)</span>
+                <label class="switch"><input type="checkbox" id="turbo-toggle" onchange="saveSettings()"><span class="slider"></span></label>
+            </div>
+            <div class="row"><span class="lbl">📸 Compress media</span>
+                <label class="switch"><input type="checkbox" id="compress-toggle" onchange="saveSettings()"><span class="slider"></span></label>
+            </div>
+            <div class="row"><span class="lbl">📊 Daily report</span>
+                <label class="switch"><input type="checkbox" id="report-toggle" onchange="saveSettings()"><span class="slider"></span></label>
+            </div>
+            <div class="row"><span class="lbl" style="color:var(--red);">🗑️ Auto-delete local after upload</span>
+                <label class="switch"><input type="checkbox" id="autodel-toggle" onchange="confirmAutoDelete()"><span class="slider danger"></span></label>
+            </div>
+            <button class="btn btn-ghost btn-sm btn-block" style="margin-top:12px;" onclick="backupNow()">🗄️ Back up database now</button>
+        </details>
+
+        <!-- console -->
+        <details class="card">
+            <summary>🖥️ Live console <span class="caret">▸</span></summary>
+            <div id="log-viewer" class="console">Connecting…</div>
+        </details>
+
+        <!-- recent -->
+        <div class="card">
+            <div class="section-title">Recent uploads</div>
+            <ul class="list" id="recent-list">
+                <li class="empty">No files yet</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- ============ MODALS ============ -->
+
+    <!-- confirm -->
+    <div id="confirm-modal" class="overlay">
+        <div class="modal" style="max-width:360px;">
+            <div class="mbody" style="text-align:center;">
+                <h3 id="confirm-title" style="margin:0 0 8px;color:var(--red);">Confirm</h3>
+                <p id="confirm-body" style="color:var(--muted);font-size:13.5px;"></p>
+                <div class="btn-row" style="margin-top:18px;">
+                    <button class="btn btn-ghost" onclick="hideConfirm()">Cancel</button>
+                    <button id="confirm-ok" class="btn btn-primary">OK</button>
+                </div>
             </div>
         </div>
     </div>
 
-    <div id="tg-login-modal" class="modal-overlay">
-        <div class="modal-content login-box" style="max-width:340px;">
-            <h2 style="color:#229ED9;">✈️ Connect Telegram</h2>
-            <div id="tg-step-phone">
-                <p style="color:#666;font-size:13px;">Enter your phone in international format.</p>
-                <input type="tel" id="tg-phone" class="form-input" placeholder="+8801XXXXXXXXX">
-                <button id="btn-sendcode" onclick="tgSendCode()" class="btn-add">Send Code</button>
+    <!-- Telegram login -->
+    <div id="tg-login-modal" class="overlay">
+        <div class="modal" style="max-width:360px;">
+            <div class="mhead">
+                <h3>✈️ Connect Telegram</h3>
             </div>
-            <div id="tg-step-code" style="display:none;">
-                <p style="color:#666;font-size:13px;">Enter the code Telegram sent you.</p>
-                <input type="text" id="tg-code" class="form-input login-input" placeholder="12345" inputmode="numeric">
-                <button id="btn-verify" onclick="tgVerifyCode()" class="btn-add">Verify</button>
+            <div class="mbody">
+                <div id="tg-step-phone">
+                    <label class="fld">Phone number (international format)</label>
+                    <input type="tel" id="tg-phone" class="input" placeholder="+8801XXXXXXXXX">
+                    <button id="btn-sendcode" class="btn btn-primary btn-block" style="margin-top:12px;" onclick="tgSendCode()">Send code</button>
+                </div>
+                <div id="tg-step-code" style="display:none;">
+                    <label class="fld">Enter the code Telegram sent you</label>
+                    <input type="text" id="tg-code" class="input" placeholder="1 2 3 4 5" inputmode="numeric" style="letter-spacing:5px;text-align:center;font-size:18px;font-weight:700;">
+                    <button id="btn-verify" class="btn btn-primary btn-block" style="margin-top:12px;" onclick="tgVerifyCode()">Verify</button>
+                </div>
+                <div id="tg-step-2fa" style="display:none;">
+                    <label class="fld">Two-step verification password</label>
+                    <input type="password" id="tg-2fa" class="input" placeholder="Password">
+                    <button id="btn-2fa" class="btn btn-primary btn-block" style="margin-top:12px;" onclick="tgVerifyPassword()">Confirm</button>
+                </div>
+                <p id="tg-error" style="color:var(--red);font-size:12px;display:none;margin-top:10px;"></p>
+                <p class="muted" style="margin-top:12px;">🔒 Your login stays on this server only.</p>
             </div>
-            <div id="tg-step-2fa" style="display:none;">
-                <p style="color:#666;font-size:13px;">Two-step verification is on. Enter your password.</p>
-                <input type="password" id="tg-2fa" class="form-input" placeholder="2FA password">
-                <button id="btn-2fa" onclick="tgVerifyPassword()" class="btn-add">Confirm</button>
-            </div>
-            <p id="tg-error" style="color:#d93025;font-size:12px;display:none;"></p>
-            <p style="font-size:11px;color:#999;margin-top:10px;">🔒 Your login stays on this server only.</p>
         </div>
     </div>
 
-    <div id="main-dashboard" class="card">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
-            <div style="display:flex;align-items:center;gap:8px;">
-                <img src="/static/logo.svg" width="30" height="30" alt="TeleDrive" style="flex-shrink:0;">
-                <h2 style="margin:0;">TeleDrive</h2>
-                <span id="ws-dot" class="ws-dot"></span>
+    <!-- group setup -->
+    <div id="group-modal" class="overlay">
+        <div class="modal">
+            <div class="mhead">
+                <h3>🎯 Group & Topics</h3>
+                <button class="x" onclick="closeModal('group-modal')">✕</button>
             </div>
-            <button id="logout-btn" onclick="tgLogout()" class="btn"
-                style="display:none;width:auto;background:#fff;border:1px solid #d93025;color:#d93025;padding:8px 14px;">🚪
-                Logout</button>
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
-            <span style="font-weight:500;">System Status:</span>
-            <span id="bot-status" class="status">…</span>
-        </div>
-        <div id="auth-warn"
-            style="display:none;background:#fff3cd;border:1px solid #ffe08a;padding:10px;border-radius:8px;font-size:13px;margin-bottom:12px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
-                <span>🔑 Not logged in to Telegram.</span>
-                <button onclick="openTgLogin()" class="btn" style="width:auto;background:#229ED9;">Connect</button>
+            <div class="mbody">
+                <label class="fld">Create a new group</label>
+                <input type="text" id="ng-title" class="input" placeholder="Group title">
+                <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;margin-top:8px;color:var(--muted);">
+                    <input type="checkbox" id="ng-topics" checked> Enable Topics (recommended)</label>
+                <button class="btn btn-primary btn-block" style="margin-top:10px;" onclick="createGroup()">Create group</button>
+
+                <label class="fld" style="margin-top:18px;">Or select an existing group</label>
+                <ul class="list" id="group-list" style="max-height:150px;overflow-y:auto;">
+                    <li class="muted">Loading…</li>
+                </ul>
+
+                <div id="topic-section" style="display:none;margin-top:16px;">
+                    <label class="fld">Topics in selected group</label>
+                    <ul class="list" id="topic-list" style="max-height:150px;overflow-y:auto;"></ul>
+                    <div id="topic-create-wrap">
+                        <input type="text" id="nt-title" class="input" placeholder="New topic title">
+                        <button class="btn btn-ghost btn-block" style="margin-top:8px;" onclick="createTopic()">➕ Create topic</button>
+                    </div>
+                </div>
             </div>
-        </div>
-        <div id="tg-account" style="display:none;font-size:12px;color:#1e8e3e;margin-bottom:12px;"></div>
-
-        <div
-            style="display:flex;justify-content:space-between;align-items:center;background:#eef7ff;border:1px solid #cce0ff;border-radius:8px;padding:10px 12px;margin-bottom:15px;">
-            <div style="font-size:13px;"><b>🎯 Target Group:</b> <span id="target-group">not set</span></div>
-            <button onclick="openGroupModal()" class="btn" style="width:auto;background:#1a73e8;">Setup</button>
-        </div>
-
-        <div class="stats-container">
-            <div class="stat-box">
-                <div id="total-count" class="stat-value" style="color:#1a73e8;">0</div>
-                <div class="stat-label">Uploaded</div>
-            </div>
-            <div style="border-left:1px solid #ddd;"></div>
-            <div class="stat-box">
-                <div id="queue-count" class="stat-value" style="color:#f29900;">0</div>
-                <div class="stat-label">In Queue</div>
-            </div>
-        </div>
-
-        <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;">
-            <button onclick="sendAction('pause')" class="btn btn-pause">⏸️ PAUSE</button>
-            <button onclick="sendAction('resume')" class="btn btn-resume">▶️ RESUME</button>
-        </div>
-
-        <button onclick="openAddModal()" class="btn-add" style="margin-top:12px;background:#0b8043;">📥 Add Files /
-            Folder</button>
-
-        <div id="upload-banner"
-            style="display:none;background:#e8f0fe;border:1px solid #cce0ff;border-radius:8px;padding:10px;margin-top:12px;font-size:13px;color:#1a73e8;font-weight:bold;">
-            <span class="spin" style="border-color:rgba(26,115,232,.3);border-top-color:#1a73e8;"></span>
-            <span id="upload-banner-text">Sending files…</span>
-        </div>
-
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-            <h3 style="border:none;margin-bottom:0;">⬆️ Active Uploads</h3>
-            <button onclick="clearQueue()" class="btn"
-                style="width:auto;background:#5f6368;font-size:11px;padding:6px 10px;">🧹 Clear Queue</button>
-        </div>
-        <div id="progress-list">
-            <div style="color:#888;font-size:13px;padding:10px;">💤 Waiting for files…</div>
-        </div>
-        <div id="failed-box"
-            style="display:none;background:#fce8e6;border:1px solid #fad2cf;border-radius:8px;padding:10px;margin-top:10px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-                <b style="color:#d93025;font-size:13px;">⚠️ Failed</b>
-                <button onclick="retryFailed()" class="btn"
-                    style="width:auto;background:#d93025;font-size:11px;padding:6px 10px;">🔁 Retry All</button>
-            </div>
-            <div id="failed-list"
-                style="font-size:12px;max-height:140px;overflow-y:auto;background:#fff;border:1px solid #fad2cf;border-radius:6px;padding:4px 8px;">
-            </div>
-        </div>
-
-        <div class="settings-group">
-            <div class="settings-bar"><span class="settings-text">🚀 Turbo Mode (Parallel Upload)</span>
-                <label class="switch"><input type="checkbox" id="turbo-toggle" onchange="saveSettings()"><span
-                        class="slider"></span></label>
-            </div>
-            <div class="settings-bar"><span class="settings-text">📸 Compress Media</span>
-                <label class="switch"><input type="checkbox" id="compress-toggle" onchange="saveSettings()"><span
-                        class="slider"></span></label>
-            </div>
-            <div class="settings-bar"><span class="settings-text">📊 Daily Auto Report</span>
-                <label class="switch"><input type="checkbox" id="report-toggle" onchange="saveSettings()"><span
-                        class="slider"></span></label>
-            </div>
-        </div>
-
-        <div class="danger-zone">
-            <div class="settings-bar"><span style="font-size:13px;font-weight:bold;color:#d93025;">🗑️ Auto-delete local
-                    files</span>
-                <label class="switch"><input type="checkbox" id="autodel-toggle"
-                        onchange="confirmAutoDelete(event)"><span class="slider danger"></span></label>
-            </div>
-        </div>
-
-        <h3>🖥️ Live Console</h3>
-        <div id="log-viewer" class="terminal-box">Connecting…</div>
-
-        <h3>🕒 Recent Uploads</h3>
-        <ul id="recent-list">
-            <li>Loading…</li>
-        </ul>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;">
-            <button onclick="location.href='/history'" class="btn btn-history" style="flex:1;min-width:160px;">🔍 Full History</button>
-            <button onclick="openReports()" class="btn btn-report" style="flex:1;min-width:160px;">📊 Reports</button>
         </div>
     </div>
 
-    <div id="add-modal" class="modal-overlay">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 style="margin:0;color:#0b8043;">📥 Add Files / Folder</h3>
-                <button onclick="closeModal('add-modal')"
-                    style="background:#f1f3f4;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;">X</button>
+    <!-- reports -->
+    <div id="report-modal" class="overlay">
+        <div class="modal">
+            <div class="mhead">
+                <h3>📊 Daily Reports</h3>
+                <button class="x" onclick="closeModal('report-modal')">✕</button>
             </div>
-            <div style="overflow-y:auto;">
-                <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
-                    <button id="tab-local" class="btn" style="flex:1;min-width:140px;background:#1a73e8;" onclick="addTab('local')">🖥️
-                        Local Path</button>
-                    <button id="tab-upload" class="btn" style="flex:1;min-width:140px;background:#5f6368;" onclick="addTab('upload')">📱
-                        Upload from Device</button>
+            <div class="mbody">
+                <ul class="list" id="report-list">
+                    <li class="muted">Loading…</li>
+                </ul>
+                <button class="btn btn-primary btn-block" style="margin-top:12px;" onclick="sendReport()">📤 Send today's report</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ADD wizard -->
+    <div id="add-modal" class="overlay">
+        <div class="modal">
+            <div class="mhead">
+                <h3 id="add-title">📥 Add Files</h3>
+                <button class="x" onclick="closeModal('add-modal')">✕</button>
+            </div>
+            <div class="mbody">
+                <div class="steps">
+                    <div class="st" data-st="1"></div>
+                    <div class="st" data-st="2"></div>
+                    <div class="st" data-st="3"></div>
                 </div>
 
-                <div id="pane-local">
-                    <div class="form-wrapper">
-                        <input type="text" id="scan-path" class="form-input"
-                            placeholder="e.g. /storage/emulated/0/DCIM or C:\\Photos">
-                        <button onclick="doScan()" class="btn-add" style="background:#1a73e8;">🔍 Scan</button>
+                <!-- STEP 1: source -->
+                <div id="add-s1">
+                    <div class="seg">
+                        <button id="tab-local" class="on" onclick="addTab('local')">🖥️ Local path</button>
+                        <button id="tab-upload" onclick="addTab('upload')">📱 From device</button>
                     </div>
-                    <div id="scan-result"
-                        style="display:none;font-size:12px;background:#f1f8f1;border:1px solid #cde9cd;border-radius:8px;padding:10px;margin-bottom:12px;">
+                    <div id="pane-local">
+                        <label class="fld">Folder path on this machine</label>
+                        <input type="text" id="scan-path" class="input" placeholder="/storage/emulated/0/DCIM or C:\Photos">
+                        <button id="scan-btn" class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="doScan()">🔍 Scan</button>
+                        <div id="scan-result" class="info-box" style="display:none;margin-top:12px;"></div>
+                    </div>
+                    <div id="pane-upload" style="display:none;">
+                        <div class="dropzone" id="drop-zone">
+                            📂 Drag files here, or:
+                            <div style="margin-top:10px;display:flex;gap:8px;justify-content:center;">
+                                <button class="btn btn-ghost btn-sm" onclick="document.getElementById('file-input').click()">Pick files</button>
+                                <button class="btn btn-ghost btn-sm" onclick="document.getElementById('folder-input').click()">Pick folder</button>
+                            </div>
+                            <input type="file" id="file-input" multiple style="display:none;">
+                            <input type="file" id="folder-input" webkitdirectory multiple style="display:none;">
+                            <div id="picked-count" style="color:var(--green);font-weight:700;margin-top:10px;"></div>
+                        </div>
                     </div>
                 </div>
 
-                <div id="pane-upload" style="display:none;">
-                    <div class="form-wrapper" id="drop-zone"
-                        style="text-align:center;border:2px dashed #bbb;cursor:pointer;">
-                        <p style="margin:6px 0;">📂 Drag files here, or:</p>
-                        <input type="file" id="file-input" multiple style="display:none;">
-                        <input type="file" id="folder-input" webkitdirectory multiple style="display:none;">
-                        <button class="btn" style="width:auto;background:#1a73e8;"
-                            onclick="document.getElementById('file-input').click()">Pick Files</button>
-                        <button class="btn" style="width:auto;background:#1a73e8;"
-                            onclick="document.getElementById('folder-input').click()">Pick Folder</button>
-                        <p id="picked-count" style="color:#0b8043;font-weight:bold;margin:8px 0 0;"></p>
-                    </div>
-                </div>
-
-                <b style="font-size:13px;">📦 Send folder as</b>
-                <div class="form-wrapper" style="margin-bottom:10px;">
-                    <select id="send-mode" class="form-input" onchange="renderRouting()">
+                <!-- STEP 2: destination -->
+                <div id="add-s2" style="display:none;">
+                    <label class="fld">Send folder as</label>
+                    <select id="send-mode" class="input" onchange="renderRouting()">
                         <option value="individual" selected>Individual files (default)</option>
                         <option value="zip">One ZIP archive</option>
-                        <option value="both">Both — individual files + a ZIP</option>
+                        <option value="both">Both — files + a ZIP</option>
                     </select>
-                    <p style="font-size:11px;color:#888;margin:6px 0 0;">ZIP over 2GB is auto-split and re-joined on download. (“Both” works for a local path.)</p>
-                </div>
+                    <p class="muted" style="margin-top:6px;">A ZIP over 2GB is auto-split and re-joined on download.</p>
 
-                <b style="font-size:13px;">🎯 Routing — where should files go?</b>
-                <div class="form-wrapper">
-                    <select id="route-mode" class="form-input" onchange="renderRouting()">
-                        <option value="extension" selected>By file type (images / videos / other) — recommended</option>
-                        <option value="folder">By folder name (auto-create a topic per subfolder)</option>
-                        <option value="topic">Single topic (all files → one topic / General)</option>
+                    <label class="fld" style="margin-top:14px;">Organize into topics by</label>
+                    <select id="route-mode" class="input" onchange="renderRouting()">
+                        <option value="extension" selected>File type — Images / Videos / … (recommended)</option>
+                        <option value="folder">Folder name (a topic per subfolder)</option>
+                        <option value="topic">A single topic</option>
                     </select>
                     <div id="route-fields"></div>
                 </div>
-                <button id="add-submit" onclick="submitAdd()" class="btn-add" style="background:#0b8043;">Add to
-                    Queue</button>
-            </div>
-        </div>
-    </div>
 
-    <div id="group-modal" class="modal-overlay">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 style="margin:0;color:#1a73e8;">🎯 Group & Topics</h3>
-                <button onclick="closeModal('group-modal')"
-                    style="background:#f1f3f4;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;">X</button>
-            </div>
-            <div style="overflow-y:auto;">
-                <div class="form-wrapper">
-                    <b style="font-size:13px;">➕ Create a new group</b>
-                    <input type="text" id="ng-title" class="form-input" placeholder="Group title">
-                    <label style="display:flex;align-items:center;gap:8px;font-size:12px;margin-top:8px;">
-                        <input type="checkbox" id="ng-topics" checked> Enable Topics (recommended)</label>
-                    <button onclick="createGroup()" class="btn-add">Create Group</button>
+                <!-- STEP 3: confirm -->
+                <div id="add-s3" style="display:none;">
+                    <div class="info-box" id="add-summary"></div>
                 </div>
-                <b style="font-size:13px;">📋 Or select an existing group</b>
-                <ul id="group-list" style="max-height:160px;overflow-y:auto;">
-                    <li>Loading…</li>
-                </ul>
 
-                <div id="topic-section" style="display:none;margin-top:15px;">
-                    <b style="font-size:13px;">🧵 Topics in selected group</b>
-                    <ul id="topic-list" style="max-height:160px;overflow-y:auto;">
-                        <li>…</li>
-                    </ul>
-                    <div class="form-wrapper" id="topic-create-wrap">
-                        <input type="text" id="nt-title" class="form-input" placeholder="New topic title">
-                        <button onclick="createTopic()" class="btn-add">Create Topic</button>
-                    </div>
+                <div class="btn-row" style="margin-top:18px;">
+                    <button id="add-back" class="btn btn-ghost" onclick="addStep(-1)" style="display:none;">← Back</button>
+                    <button id="add-next" class="btn btn-primary" onclick="addStep(1)">Next →</button>
+                    <button id="add-submit" class="btn btn-primary" onclick="submitAdd()" style="display:none;">Add to Queue</button>
                 </div>
             </div>
-        </div>
-    </div>
-
-    <div id="report-modal" class="modal-overlay">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 style="margin:0;color:#f29900;">📊 Day-by-Day Reports</h3>
-                <button onclick="closeModal('report-modal')"
-                    style="background:#f1f3f4;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;">X</button>
-            </div>
-            <div class="history-list">
-                <ul id="report-list">
-                    <li>Loading…</li>
-                </ul>
-            </div>
-            <button onclick="sendReport()" class="btn btn-report" style="background:#1a73e8;">📤 Send Today's
-                Report</button>
         </div>
     </div>
 
     <script>
-        let ws = null;
-        let currentGroupId = null;
+        let ws = null, currentGroupId = null;
 
-        function apiFetch(url, opts = {}) {
-            opts.headers = opts.headers || {};
-            return fetch(url, opts).then(r => r.json());
+        // ---------- utils ----------
+        function apiFetch(url, opts = {}) { opts.headers = opts.headers || {}; return fetch(url, opts).then(r => r.json()); }
+        function tgHandle(url, body) {
+            return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+                .then(async r => { const j = await r.json(); if (!r.ok) throw new Error(j.detail || 'Error'); return j; });
+        }
+        function tgPost(url, body) { return apiFetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); }
+
+        let toastTimer;
+        function showToast(m, danger = false) {
+            const t = document.getElementById('toast'); t.innerText = m;
+            t.style.background = danger ? 'var(--red)' : '#202b36';
+            t.style.bottom = '24px'; clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => t.style.bottom = '-120px', 3800);
+        }
+        let _confirmCb = null;
+        function showConfirm(title, body, okLabel, okDanger, cb) {
+            document.getElementById('confirm-title').innerText = title;
+            document.getElementById('confirm-body').innerHTML = body;
+            const ok = document.getElementById('confirm-ok');
+            ok.innerText = okLabel || 'Confirm';
+            ok.className = 'btn ' + (okDanger ? 'btn-danger' : 'btn-primary');
+            _confirmCb = cb; document.getElementById('confirm-modal').classList.add('open');
+        }
+        function hideConfirm() { document.getElementById('confirm-modal').classList.remove('open'); _confirmCb = null; }
+        document.getElementById('confirm-ok').addEventListener('click', () => { const cb = _confirmCb; hideConfirm(); if (cb) cb(); });
+        function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+        function fmtBytes(b) { if (!b || b <= 0) return '0B'; const k = 1024, s = ['B', 'KB', 'MB', 'GB'], i = Math.floor(Math.log(b) / Math.log(k)); return (b / Math.pow(k, i)).toFixed(1) + s[i]; }
+        function fmtSpeed(v) { if (!v || v <= 0) return '-'; return v < 1048576 ? (v / 1024).toFixed(1) + 'KB/s' : (v / 1048576).toFixed(2) + 'MB/s'; }
+        function fmtETA(s) { if (s == null || s < 0 || !isFinite(s)) return '—'; s = Math.round(s); if (s < 60) return s + 's'; const m = Math.floor(s / 60); if (m < 60) return m + 'm ' + (s % 60) + 's'; return Math.floor(m / 60) + 'h ' + (m % 60) + 'm'; }
+        function btnBusy(id, busy, label) {
+            const b = document.getElementById(id); if (!b) return;
+            if (busy) { b.disabled = true; if (b.dataset.label === undefined) b.dataset.label = b.innerHTML; b.innerHTML = `<span class="spin"></span> ${label || 'Please wait…'}`; }
+            else { b.disabled = false; if (b.dataset.label !== undefined) { b.innerHTML = b.dataset.label; delete b.dataset.label; } }
         }
 
-        function startApp() {
-            document.getElementById('main-dashboard').style.display = 'block';
-            loadConfig();
-            refreshAccount();
-            connectWS();
-        }
-
+        // ---------- lifecycle ----------
+        function startApp() { loadConfig(); refreshAccount(); connectWS(); }
         function connectWS() {
             const proto = location.protocol === 'https:' ? 'wss' : 'ws';
             ws = new WebSocket(`${proto}://${location.host}/ws`);
@@ -776,332 +1012,26 @@
             ws.onclose = () => { document.getElementById('ws-dot').classList.remove('on'); setTimeout(connectWS, 2000); };
             ws.onmessage = (e) => handleEvent(JSON.parse(e.data));
         }
-
+        function refreshSnapshot() { apiFetch('/api/stats').then(renderSnapshot); }
         function handleEvent(msg) {
             const d = msg.data;
-            if (msg.type === 'snapshot') { renderSnapshot(d); }
-            else if (msg.type === 'progress') { renderProgress(d); }
+            if (msg.type === 'snapshot') renderSnapshot(d);
+            else if (msg.type === 'progress') renderProgress(d);
             else if (msg.type === 'queue') { document.getElementById('queue-count').innerText = d.queued_files; refreshSnapshot(); }
-            else if (msg.type === 'status') { setStatus(d.status); }
+            else if (msg.type === 'status') setStatus(d.status);
             else if (msg.type === 'auth') { refreshSnapshot(); refreshAccount(); }
-            else if (msg.type === 'failed') { renderFailed(d.failed || []); }
+            else if (msg.type === 'failed') renderFailed(d.failed || []);
             else if (msg.type === 'uploaded') { document.getElementById('total-count').innerText = d.total_uploaded; showToast(`✅ ${d.name}${d.duration_text ? ' · ' + d.duration_text : ''}`); refreshSnapshot(); }
-            else if (msg.type === 'log') { appendLog(d.line); }
+            else if (msg.type === 'log') appendLog(d.line);
         }
 
-        function refreshSnapshot() { apiFetch('/api/stats').then(renderSnapshot); }
-
-        // ---- Add files / folder (Phase 3) ----
-        let addMode = 'local';         // local | upload
-        let scanData = null;           // last scan result (for folder routing)
-        let pickedFiles = [];          // File[] for upload mode
-        let addTopics = [];            // topics of the current target group (for dropdowns)
-        let addGroupForum = false;
-
-        function openAddModal() {
-            if (!currentGroupId) { showToast('Set a target group first (🎯 Setup)', true); openGroupModal(); return; }
-            addTab('local'); scanData = null; pickedFiles = [];
-            document.getElementById('scan-result').style.display = 'none';
-            document.getElementById('picked-count').innerText = '';
-            // Load topics of the target group so users can PICK instead of typing IDs.
-            addTopics = []; addGroupForum = false;
-            apiFetch(`/api/groups/${currentGroupId}/topics`).then(d => { addGroupForum = !!d.is_forum; addTopics = d.topics || []; renderRouting(); }).catch(() => renderRouting());
-            renderRouting(); document.getElementById('add-modal').style.display = 'flex';
-        }
-        function addTab(m) {
-            addMode = m;
-            document.getElementById('pane-local').style.display = m === 'local' ? 'block' : 'none';
-            document.getElementById('pane-upload').style.display = m === 'upload' ? 'block' : 'none';
-            document.getElementById('tab-local').style.background = m === 'local' ? '#1a73e8' : '#5f6368';
-            document.getElementById('tab-upload').style.background = m === 'upload' ? '#1a73e8' : '#5f6368';
-            renderRouting();
-        }
-        function doScan() {
-            const path = document.getElementById('scan-path').value.trim();
-            if (!path) { showToast('Enter a path', true); return; }
-            const sb = document.querySelector('#pane-local .btn-add'); if (sb) { sb.disabled = true; sb.innerHTML = '<span class="spin"></span> Scanning…'; }
-            const reset = () => { if (sb) { sb.disabled = false; sb.innerHTML = '🔍 Scan'; } };
-            tgHandle('/api/scan', { path }).finally(reset).then(d => {
-                scanData = d;
-                const sz = fmtBytes(d.total_size);
-                document.getElementById('scan-result').style.display = 'block';
-                document.getElementById('scan-result').innerHTML =
-                    `<b>${d.total_files}</b> files · <b>${sz}</b><br>📁 ${d.subfolders.length} subfolder(s) · ` +
-                    d.extensions.slice(0, 6).map(e => `${e.ext}:${e.count}`).join(' ');
-                renderRouting();
-            }).catch(e => showToast(e.message, true));
-        }
-        // build a <select> of the group's topics (General fallback when not a forum)
-        function topicSelect(id) {
-            if (!addGroupForum) { return `<input type="hidden" id="${id}" value="0"><p style="font-size:11px;color:#888;margin:4px 0;">Group has no Topics — files go to the main chat (General).</p>`; }
-            const opts = [`<option value="1">General</option>`].concat(addTopics.map(t => `<option value="${t.id}">${t.title} (ID ${t.id})</option>`)).join('');
-            return `<select id="${id}" class="form-input">${opts}</select>`;
-        }
-        function renderRouting() {
-            const mode = document.getElementById('route-mode').value;
-            const box = document.getElementById('route-fields');
-            if (mode === 'topic') {
-                box.innerHTML = `<label style="font-size:12px;">All files → </label>${topicSelect('rt-topic')}`;
-            } else if (mode === 'extension') {
-                box.innerHTML = `<p style="font-size:12px;color:#555;">Files are sorted into topics by type — auto-created (or reused) as needed:</p>
-            <div style="font-size:12px;background:#fff;border:1px solid #eee;border-radius:6px;padding:8px;line-height:1.8;">🖼️ <b>Images</b> · 🎬 <b>Videos</b> · 🎵 <b>Audios</b> · 📄 <b>Documents</b> · 💻 <b>Coding</b> · 🗜️ <b>Compressed</b> · ⚙️ <b>Programme</b> · 📦 <b>Others</b></div>
-            <p style="font-size:11px;color:#888;margin-top:6px;">Only topics for types you actually upload get created.</p>`;
-            } else { // folder — auto-create a topic per subfolder
-                let subs = scanData ? scanData.subfolders : foldersFromPicked();
-                if (!subs.length) { box.innerHTML = `<p style="font-size:12px;color:#888;">Scan a path (or pick a folder) first to see which topics will be created.</p>`; return; }
-                const MAX = 30;
-                const list = subs.map(s => `📁 <b>${s.name === '.' ? 'General' : s.name}</b> (${s.count})`).join(' · ');
-                const warn = subs.length > MAX ? `<p style="color:#d93025;font-size:12px;">⚠️ ${subs.length} folders exceeds the ${MAX}-topic cap. Extra folders fall back to General. (Telegram limits topics per group.)</p>` : '';
-                box.innerHTML = `<p style="font-size:12px;color:#555;">A topic will be auto-created (or reused) for each folder:</p>
-            <div style="font-size:12px;background:#fff;border:1px solid #eee;border-radius:6px;padding:8px;max-height:120px;overflow:auto;">${list}</div>${warn}`;
-            }
-        }
-        function foldersFromPicked() {
-            const m = {}; pickedFiles.forEach(f => { const rp = (f.webkitRelativePath || f.name); const parts = rp.split('/'); const top = parts.length > 1 ? parts[0] : '.'; m[top] = (m[top] || 0) + 1; });
-            return Object.entries(m).map(([name, count]) => ({ name, count }));
-        }
-        const FILE_CATEGORIES = {
-            image: ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg', '.tiff', '.tif', '.heic', '.heif', '.ico'],
-            video: ['.mp4', '.mkv', '.avi', '.mov', '.webm', '.ts', '.flv', '.wmv', '.m4v', '.mpeg', '.mpg', '.3gp', '.m2ts'],
-            audio: ['.mp3', '.wav', '.flac', '.aac', '.ogg', '.m4a', '.wma', '.opus', '.amr', '.aiff', '.mid'],
-            document: ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.txt', '.rtf', '.odt', '.ods', '.odp', '.csv', '.epub', '.md'],
-            coding: ['.py', '.js', '.ts', '.jsx', '.tsx', '.java', '.c', '.cpp', '.cc', '.h', '.hpp', '.cs', '.go', '.rs', '.rb', '.php', '.html', '.htm', '.css', '.scss', '.json', '.xml', '.yaml', '.yml', '.sh', '.bat', '.ps1', '.sql', '.kt', '.swift', '.dart', '.r', '.lua', '.pl'],
-            compressed: ['.zip', '.rar', '.7z', '.tar', '.gz', '.bz2', '.xz', '.tgz', '.iso', '.cab', '.arj'],
-            program: ['.exe', '.msi', '.apk', '.deb', '.rpm', '.dmg', '.appimage', '.bin', '.app', '.jar'],
-        };
-        const LABEL = { image: 'Images', video: 'Videos', audio: 'Audios', document: 'Documents', coding: 'Coding', compressed: 'Compressed', program: 'Programme', other: 'Others' };
-        function fileTypeOf(name) {
-            const ext = '.' + (name.split('.').pop() || '').toLowerCase();
-            for (const cat in FILE_CATEGORIES) { if (FILE_CATEGORIES[cat].includes(ext)) return cat; }
-            return 'other';
-        }
-        function buildRouting() {
-            const mode = document.getElementById('route-mode').value;
-            const sendMode = document.getElementById('send-mode').value;
-            const zipTopic = (mode === 'topic') ? (parseInt(document.getElementById('rt-topic').value) || 0) : 0;
-            let r;
-            if (mode === 'topic') { r = { mode: 'topic', topic_id: parseInt(document.getElementById('rt-topic').value) || 0 }; }
-            else if (mode === 'extension') { r = { mode: 'extension', auto_create: true }; }
-            else { r = { mode: 'folder', auto_create: true }; }
-            r.send_mode = sendMode;
-            r.zip_topic_id = zipTopic;
-            return r;
-        }
-        function setAddBusy(busy, label) {
-            const btn = document.getElementById('add-submit');
-            btn.disabled = busy;
-            btn.innerHTML = busy ? `<span class="spin"></span> ${label || 'Working…'}` : 'Add to Queue';
-        }
-        function submitAdd() {
-            const routing = buildRouting();
-            if (addMode === 'local') {
-                const path = document.getElementById('scan-path').value.trim();
-                if (!path) { showToast('Scan a path first', true); return; }
-                setAddBusy(true, 'Scanning & queuing…');
-                tgHandle('/api/queue/add', { path, routing }).then(r => {
-                    let msg = `➕ Queued ${r.added}` + (r.skipped ? ` (skipped ${r.skipped})` : '');
-                    if (r.topics_created) msg += ` · created ${r.topics_created} topic(s)`;
-                    showToast(msg); closeModal('add-modal');
-                }).catch(e => showToast(e.message, true)).finally(() => setAddBusy(false));
-            } else {
-                uploadFromDevice(routing);
-            }
-        }
-        // per-file browser upload (one request per file → a dropped connection never kills the batch)
-        async function uploadFromDevice(routing) {
-            if (!pickedFiles.length) { showToast('Pick files first', true); return; }
-
-            // ZIP (or "both", treated as ZIP for browser uploads): stage every
-            // file under one session, then zip + queue it server-side.
-            if (routing.send_mode === 'zip' || routing.send_mode === 'both') {
-                const session = 'z' + Date.now() + Math.random().toString(36).slice(2, 8);
-                const zipTopic = routing.zip_topic_id || 0;
-                const files = pickedFiles.slice();
-                setAddBusy(false); closeModal('add-modal');
-                showBanner(`Staging 0/${files.length} for ZIP…`);
-                let done = 0;
-                for (const f of files) {
-                    const rel = f.webkitRelativePath || f.name;
-                    const fd = new FormData();
-                    fd.append('file', f); fd.append('rel_path', rel);
-                    fd.append('last_modified', f.lastModified);
-                    fd.append('session', session); fd.append('stage_only', 'true');
-                    try { await fetch('/api/upload', { method: 'POST', body: fd }); } catch (e) { }
-                    done++; showBanner(`Staging ${done}/${files.length} for ZIP…`);
-                }
-                showBanner('Zipping & queuing…');
-                try {
-                    await tgHandle('/api/zip_session', { session, topic_id: zipTopic });
-                    showToast('📦 Folder zipped & queued');
-                } catch (e) { showToast(e.message, true); }
-                hideBanner();
-                return;
-            }
-
-            setAddBusy(true, 'Preparing…');
-            // Resolve the topic map up front (auto-creating topics as needed).
-            let folderMap = {}, typeMap = {};
-            try {
-                if (routing.mode === 'folder') {
-                    const names = foldersFromPicked().map(s => s.name);
-                    folderMap = (await tgHandle('/api/topics/ensure_folders', { group_id: currentGroupId, folders: names })).mapping || {};
-                } else if (routing.mode === 'extension') {
-                    const present = [...new Set(pickedFiles.map(f => LABEL[fileTypeOf(f.name)]))];
-                    typeMap = (await tgHandle('/api/topics/ensure_folders', { group_id: currentGroupId, folders: present })).mapping || {};
-                }
-            } catch (e) { setAddBusy(false); showToast(e.message, true); return; }
-
-            // Topics are ready — hand off to the background and return to the dashboard.
-            const files = pickedFiles.slice();
-            setAddBusy(false);
-            closeModal('add-modal');
-            showBanner(`Sending 0/${files.length} to server…`);
-            backgroundUpload(files, routing, folderMap, typeMap);
-        }
-        function showBanner(text) { document.getElementById('upload-banner-text').innerText = text; document.getElementById('upload-banner').style.display = 'block'; }
-        function hideBanner() { document.getElementById('upload-banner').style.display = 'none'; }
-
-        async function backgroundUpload(files, routing, folderMap, typeMap) {
-            const total = files.length; let done = 0, ok = 0;
-            for (const f of files) {
-                const rel = f.webkitRelativePath || f.name;
-                let topic = 0;
-                if (routing.mode === 'topic') topic = routing.topic_id;
-                else if (routing.mode === 'extension') topic = typeMap[LABEL[fileTypeOf(f.name)]] || 1;
-                else { const parts = rel.split('/'); const top = parts.length > 1 ? parts[0] : '.'; topic = folderMap[top] || 1; }
-                const fd = new FormData(); fd.append('file', f); fd.append('topic_id', topic); fd.append('rel_path', rel); fd.append('last_modified', f.lastModified);
-                try {
-                    const r = await fetch('/api/upload', { method: 'POST', body: fd });
-                    const j = await r.json(); if (r.ok && j.queued) ok++;
-                } catch (e) { /* keep going */ }
-                done++; showBanner(`Sending ${done}/${total} to server…`);
-            }
-            hideBanner();
-            showToast(`⬆️ Sent ${ok}/${total} to the queue`);
-        }
-        // file/folder pickers + drag-drop
-        window.addEventListener('DOMContentLoaded', () => {
-            const setPicked = (list) => { pickedFiles = Array.from(list); document.getElementById('picked-count').innerText = `${pickedFiles.length} file(s) selected`; renderRouting(); };
-            document.getElementById('file-input').addEventListener('change', e => setPicked(e.target.files));
-            document.getElementById('folder-input').addEventListener('change', e => setPicked(e.target.files));
-            const dz = document.getElementById('drop-zone');
-            ['dragover', 'dragenter'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.style.background = '#eaf5ea'; }));
-            ['dragleave', 'drop'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.style.background = ''; }));
-            dz.addEventListener('drop', e => { if (e.dataTransfer.files.length) setPicked(e.dataTransfer.files); });
-        });
-
-        // ---- Group & topic setup ----
-        let selectedGroupId = null;
-        function openGroupModal() { document.getElementById('group-modal').style.display = 'flex'; document.getElementById('topic-section').style.display = 'none'; loadGroups(); }
-        function loadGroups() {
-            apiFetch('/api/groups').then(list => {
-                document.getElementById('group-list').innerHTML = list.length ? list.map(g =>
-                    `<li><span>${g.is_forum ? '🧵' : '👥'} ${g.title} <span style="background:#e8eaed;padding:1px 5px;border-radius:4px;font-size:10px;">${g.role || ''}</span></span><button class="btn" style="width:auto;background:#1e8e3e;" onclick="selectGroup(${g.id},'${(g.title || '').replace(/'/g, "")}',${g.is_forum})">Select</button></li>`
-                ).join('') : "<li style='justify-content:center;color:#888;'>No groups you own/admin found</li>";
-            }).catch(e => { document.getElementById('group-list').innerHTML = "<li style='color:#d93025;'>Log in first</li>"; });
-        }
-        function createGroup() {
-            const title = document.getElementById('ng-title').value.trim();
-            if (!title) { showToast('Enter a title', true); return; }
-            tgHandle('/api/groups/create', { title, enable_topics: document.getElementById('ng-topics').checked }).then(g => {
-                showToast('✅ Group created'); document.getElementById('ng-title').value = '';
-                setTargetGroup(g.id); selectGroup(g.id, g.title, document.getElementById('ng-topics').checked); loadGroups();
-            }).catch(e => showToast(e.message, true));
-        }
-        function selectGroup(id, title, isForum) {
-            selectedGroupId = id;
-            tgHandle('/api/groups/select', { group_id: id }).then(() => { setTargetGroup(id, title); showToast('🎯 Target set'); });
-            document.getElementById('topic-section').style.display = 'block';
-            document.getElementById('topic-create-wrap').style.display = isForum ? 'block' : 'none';
-            loadTopics(id, isForum);
-        }
-        function loadTopics(id, isForum) {
-            if (!isForum) { document.getElementById('topic-list').innerHTML = "<li style='color:#888;'>This group has no Topics. Upload target = General.</li>"; return; }
-            apiFetch(`/api/groups/${id}/topics`).then(d => {
-                document.getElementById('topic-list').innerHTML = (d.topics && d.topics.length) ? d.topics.map(t =>
-                    `<li><span>🧵 ${t.title}</span><span style="background:#e8eaed;padding:2px 6px;border-radius:4px;font-size:11px;">ID ${t.id}</span></li>`
-                ).join('') : "<li style='color:#888;'>No topics yet</li>";
-            });
-        }
-        function createTopic() {
-            const title = document.getElementById('nt-title').value.trim();
-            if (!title || !selectedGroupId) { showToast('Enter topic title', true); return; }
-            tgHandle('/api/topics/create', { group_id: selectedGroupId, title }).then(t => {
-                showToast(`✅ Topic '${t.title}' (ID ${t.id})`); document.getElementById('nt-title').value = '';
-                loadTopics(selectedGroupId, true);
-            }).catch(e => showToast(e.message, true));
-        }
-        function setTargetGroup(id, title) { currentGroupId = id; document.getElementById('target-group').innerText = title ? `${title} (${id})` : id; }
-
-        // ---- Telegram login flow ----
-        function openTgLogin() { tgShowStep('phone'); document.getElementById('tg-error').style.display = 'none'; document.getElementById('tg-login-modal').style.display = 'flex'; }
-        function tgShowStep(s) { ['phone', 'code', '2fa'].forEach(x => document.getElementById('tg-step-' + x).style.display = (x === s ? 'block' : 'none')); }
-        function tgError(m) { const e = document.getElementById('tg-error'); e.innerText = m; e.style.display = 'block'; }
-        function tgPost(url, body) {
-            return apiFetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-        }
-        function tgHandle(url, body) {
-            return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-                .then(async r => { const j = await r.json(); if (!r.ok) throw new Error(j.detail || 'Error'); return j; });
-        }
-        function btnBusy(id, busy, label) {
-            const b = document.getElementById(id);
-            if (!b) return;
-            if (busy) {
-                b.disabled = true;
-                if (b.dataset.label === undefined) b.dataset.label = b.innerHTML;
-                b.innerHTML = `<span class="spin"></span> ${label || 'Please wait…'}`;
-            } else {
-                b.disabled = false;
-                if (b.dataset.label !== undefined) { b.innerHTML = b.dataset.label; delete b.dataset.label; }
-            }
-        }
-        function tgSendCode() {
-            const phone = document.getElementById('tg-phone').value.trim();
-            if (!phone) { tgError('Enter phone number'); return; }
-            btnBusy('btn-sendcode', true, 'Sending…');
-            tgHandle('/api/auth/send_code', { phone })
-                .then(() => { document.getElementById('tg-error').style.display = 'none'; tgShowStep('code'); })
-                .catch(e => tgError(e.message))
-                .finally(() => btnBusy('btn-sendcode', false));
-        }
-        function tgVerifyCode() {
-            const code = document.getElementById('tg-code').value.trim();
-            btnBusy('btn-verify', true, 'Verifying…');
-            tgHandle('/api/auth/verify_code', { code }).then(res => {
-                if (res.status === 'password_needed') { document.getElementById('tg-error').style.display = 'none'; tgShowStep('2fa'); }
-                else tgLoggedIn();
-            }).catch(e => tgError(e.message)).finally(() => btnBusy('btn-verify', false));
-        }
-        function tgVerifyPassword() {
-            const password = document.getElementById('tg-2fa').value;
-            btnBusy('btn-2fa', true, 'Confirming…');
-            tgHandle('/api/auth/verify_password', { password }).then(tgLoggedIn)
-                .catch(e => tgError(e.message)).finally(() => btnBusy('btn-2fa', false));
-        }
-        function tgLoggedIn() { closeModal('tg-login-modal'); showToast('✅ Telegram connected'); refreshSnapshot(); refreshAccount(); }
-        function tgLogout() {
-            showConfirm('Disconnect Telegram?', 'This logs out the Telegram session on this server. You will need to sign in again with your phone + code to keep uploading.', 'Logout', '#d93025', () => {
-                btnBusy('logout-btn', true, 'Logging out…');
-                tgPost('/api/auth/logout', {}).then(() => { showToast('👋 Logged out'); window._tgPrompted = false; refreshSnapshot(); refreshAccount(); openTgLogin(); })
-                    .finally(() => btnBusy('logout-btn', false));
-            });
-        }
-        function refreshAccount() {
-            apiFetch('/api/auth/status').then(d => {
-                const el = document.getElementById('tg-account');
-                const btn = document.getElementById('logout-btn');
-                const connected = d.auth_state === 'authorized' && d.me;
-                if (connected) { el.style.display = 'block'; el.innerHTML = `✅ Connected as <b>${d.me.first_name || ''}</b> ${d.me.username ? ('@' + d.me.username) : ''}`; }
-                else { el.style.display = 'none'; }
-                btn.style.display = connected ? 'inline-block' : 'none';
-            });
-        }
+        function setStatus(s) { const el = document.getElementById('status'); el.innerText = s; el.className = 'status ' + s; }
 
         function renderSnapshot(d) {
             setStatus(d.status);
             document.getElementById('total-count').innerText = d.total_uploaded;
             document.getElementById('queue-count').innerText = d.queued_files;
+            document.getElementById('active-count').innerText = d.active_uploads;
             document.getElementById('auth-warn').style.display = d.auth_state === 'authorized' ? 'none' : 'block';
             if (d.auth_state !== 'authorized' && !window._tgPrompted) { window._tgPrompted = true; openTgLogin(); }
             if (d.group_id) setTargetGroup(d.group_id);
@@ -1111,112 +1041,63 @@
             renderFailed(d.failed || []);
             const rl = document.getElementById('recent-list');
             rl.innerHTML = (d.recent_uploads || []).map(f =>
-                `<li><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55%;">📄 ${f.name}</span>
-         <div style="display:flex;align-items:center;"><span class="time">${f.time}</span>${f.link ? `<a href="${f.link}" target="_blank" class="msg-link">🔗</a>` : ''}</div></li>`
-            ).join('') || "<li style='justify-content:center;color:#888;'>No files yet</li>";
+                `<li><span class="fname">📄 ${f.name}</span><span style="display:flex;gap:8px;align-items:center;flex-shrink:0;"><span class="muted">${f.time}</span>${f.link ? `<a href="${f.link}" target="_blank" class="link">🔗</a>` : ''}</span></li>`
+            ).join('') || "<li class='empty'>No files yet</li>";
         }
 
-        function setStatus(s) { const el = document.getElementById('bot-status'); el.innerText = s; el.className = 'status ' + s; }
-
-        let progressCache = {};
-        let queuedCache = [];
-        let _renderTimer = null;
-        function renderProgress(p) {
-            progressCache[p.hash] = p;
-            scheduleRenderUploads();
-        }
-        // Coalesce the frequent progress-tick re-renders so the button DOM
-        // isn't torn down mid-click (which made pause/cancel need many taps).
-        function scheduleRenderUploads() {
-            if (_renderTimer) return;
-            _renderTimer = setTimeout(() => { _renderTimer = null; renderUploads(); }, 350);
-        }
+        // ---------- uploads / queue ----------
+        let progressCache = {}, queuedCache = [], _renderTimer = null;
+        function renderProgress(p) { progressCache[p.hash] = p; scheduleRender(); }
+        function scheduleRender() { if (_renderTimer) return; _renderTimer = setTimeout(() => { _renderTimer = null; renderUploads(); }, 350); }
         function renderUploads() {
-            const box = document.getElementById('progress-list');
+            const box = document.getElementById('uploads');
             const active = Object.values(progressCache);
-            const activeHashes = new Set(active.map(a => a.hash));
-            const waiting = (queuedCache || []).filter(q => !activeHashes.has(q.hash));
-            if (!active.length && !waiting.length) {
-                box.innerHTML = "<div style='color:#888;font-size:13px;padding:10px;'>💤 Waiting for files…</div>";
-                return;
-            }
-            const activeHtml = active.map(p => `
-        <div class="progress-item">
-            <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;">
-                <div class="file-name" style="margin:0;min-width:0;overflow:hidden;text-overflow:ellipsis;">⬆️ ${p.file_name}</div>
-                <span style="flex-shrink:0;">
-                    <button data-act="pause" data-h="${p.hash}" title="Pause" class="qbtn">⏸️</button>
-                    <button data-act="cancel" data-h="${p.hash}" title="Cancel" class="qbtn">✖️</button>
-                </span>
-            </div>
-            <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${p.percentage}%;"></div></div>
-            <div class="progress-stats">
-                <span>${p.percentage}%</span>
-                <span>
-                    <span style="color:#1e8e3e;">${fmtSpeed(p.speed)}</span>
-                    <span style="color:#5f6368;">⏱️ ${fmtETA(p.elapsed)}</span>
-                    <span style="color:#f29900;">⏳ ${fmtETA(p.eta)}</span>
-                </span>
-                <span>${fmtBytes(p.current)}/${fmtBytes(p.total)}</span>
-            </div>
-        </div>`).join('');
-            const waitHtml = waiting.map(q => {
+            const ah = new Set(active.map(a => a.hash));
+            const waiting = (queuedCache || []).filter(q => !ah.has(q.hash));
+            if (!active.length && !waiting.length) { box.innerHTML = "<div class='empty'>💤 Nothing uploading right now.</div>"; return; }
+            const A = active.map(p => `
+                <div class="up">
+                    <div class="head">
+                        <span class="fname">⬆️ ${p.file_name}</span>
+                        <span style="flex-shrink:0;">
+                            <button class="qbtn" data-act="pause" data-h="${p.hash}" title="Pause">⏸️</button>
+                            <button class="qbtn" data-act="cancel" data-h="${p.hash}" title="Cancel">✖️</button>
+                        </span>
+                    </div>
+                    <div class="bar"><i style="width:${p.percentage}%"></i></div>
+                    <div class="meta"><span>${p.percentage}%</span><span style="color:var(--green);">${fmtSpeed(p.speed)}</span><span>⏱️ ${fmtETA(p.elapsed)} · ⏳ ${fmtETA(p.eta)}</span><span>${fmtBytes(p.current)}/${fmtBytes(p.total)}</span></div>
+                </div>`).join('');
+            const W = waiting.map(q => {
                 const paused = q.state === 'paused';
-                const badge = paused ? '⏸️ Paused' : '⏳ Queued';
-                const toggle = paused
-                    ? `<button data-act="resume" data-h="${q.hash}" title="Resume" class="qbtn">▶️</button>`
-                    : `<button data-act="pause" data-h="${q.hash}" title="Pause" class="qbtn">⏸️</button>`;
-                return `<div class="queue-item">
-                    <span class="file-name" style="margin:0;min-width:0;overflow:hidden;text-overflow:ellipsis;">📄 ${q.name}</span>
+                const toggle = paused ? `<button class="qbtn" data-act="resume" data-h="${q.hash}" title="Resume">▶️</button>`
+                    : `<button class="qbtn" data-act="pause" data-h="${q.hash}" title="Pause">⏸️</button>`;
+                return `<div class="up"><div class="head"><span class="fname">📄 ${q.name}</span>
                     <span style="flex-shrink:0;display:flex;align-items:center;gap:6px;">
-                        <span class="qstate">${badge}</span>${toggle}
-                        <button data-act="cancel" data-h="${q.hash}" title="Cancel" class="qbtn">✖️</button>
-                    </span></div>`;
+                        <span class="qstate">${paused ? '⏸️ Paused' : '⏳ Queued'}</span>${toggle}
+                        <button class="qbtn" data-act="cancel" data-h="${q.hash}" title="Cancel">✖️</button>
+                    </span></div></div>`;
             }).join('');
-            box.innerHTML = activeHtml + waitHtml;
+            box.innerHTML = A + W;
         }
-        // One delegated listener on the stable container — survives every
-        // re-render, so a click is never lost to a mid-render DOM swap.
-        document.getElementById('progress-list').addEventListener('click', (e) => {
-            const b = e.target.closest('button[data-act]');
-            if (!b) return;
+        document.getElementById('uploads').addEventListener('click', (e) => {
+            const b = e.target.closest('button[data-act]'); if (!b) return;
             const h = b.dataset.h, act = b.dataset.act;
-            if (act === 'pause') pauseItem(h);
-            else if (act === 'resume') resumeItem(h);
-            else if (act === 'cancel') cancelItem(h);
+            if (act === 'pause') pauseItem(h); else if (act === 'resume') resumeItem(h); else if (act === 'cancel') cancelItem(h);
         });
         function renderFailed(items) {
             const box = document.getElementById('failed-box');
             if (!items.length) { box.style.display = 'none'; return; }
             box.style.display = 'block';
             document.getElementById('failed-list').innerHTML = items.map(f =>
-                `<div style="padding:4px 0;border-bottom:1px solid #fad2cf;">📄 ${f.name}<br><span style="color:#a52714;font-size:11px;">${(f.error || '').slice(0, 80)}</span></div>`).join('');
+                `<div style="padding:4px 0;">📄 ${f.name}<br><span style="color:var(--red);font-size:11px;">${(f.error || '').slice(0, 90)}</span></div>`).join('');
         }
-        function _setQueuedState(h, state) {
-            const q = queuedCache.find(x => x.hash === h);
-            if (q) q.state = state;
-        }
-        function cancelItem(h) {
-            // optimistic: drop it from the local view immediately
-            delete progressCache[h];
-            queuedCache = queuedCache.filter(x => x.hash !== h);
-            renderUploads();
-            showToast('🚫 Cancelling…');
-            apiFetch('/api/queue/cancel/' + h, { method: 'POST' }).then(() => setTimeout(refreshSnapshot, 500));
-        }
-        function pauseItem(h) {
-            _setQueuedState(h, 'paused');
-            delete progressCache[h];   // stop showing the live bar
-            renderUploads();
-            apiFetch('/api/queue/pause/' + h, { method: 'POST' }).then(() => setTimeout(refreshSnapshot, 500));
-        }
-        function resumeItem(h) {
-            _setQueuedState(h, 'pending');
-            renderUploads();
-            apiFetch('/api/queue/resume/' + h, { method: 'POST' }).then(() => setTimeout(refreshSnapshot, 500));
-        }
-        function clearQueue() { showConfirm('Clear the queue?', 'Remove all queued files that have not started uploading yet.', 'Clear', '#5f6368', () => { apiFetch('/api/queue/clear', { method: 'POST' }).then(r => showToast(`🧹 Cleared ${r.cleared}`)); }); }
+        function _setQ(h, st) { const q = queuedCache.find(x => x.hash === h); if (q) q.state = st; }
+        function cancelItem(h) { delete progressCache[h]; queuedCache = queuedCache.filter(x => x.hash !== h); renderUploads(); showToast('🚫 Cancelling…'); apiFetch('/api/queue/cancel/' + h, { method: 'POST' }).then(() => setTimeout(refreshSnapshot, 500)); }
+        function pauseItem(h) { _setQ(h, 'paused'); delete progressCache[h]; renderUploads(); apiFetch('/api/queue/pause/' + h, { method: 'POST' }).then(() => setTimeout(refreshSnapshot, 500)); }
+        function resumeItem(h) { _setQ(h, 'pending'); renderUploads(); apiFetch('/api/queue/resume/' + h, { method: 'POST' }).then(() => setTimeout(refreshSnapshot, 500)); }
+        function clearQueue() { showConfirm('Clear the queue?', 'Cancel all queued and uploading files.', 'Clear', false, () => { progressCache = {}; queuedCache = []; renderUploads(); apiFetch('/api/queue/clear', { method: 'POST' }).then(r => showToast(`🧹 Cleared ${r.cleared}`)); }); }
         function retryFailed() { apiFetch('/api/queue/retry_failed', { method: 'POST' }).then(r => showToast(`🔁 Re-queued ${r.requeued}`)); }
+        function sendAction(a) { apiFetch('/api/action/' + a); }
 
         function appendLog(line) {
             const v = document.getElementById('log-viewer');
@@ -1226,37 +1107,19 @@
             if (atBottom) v.scrollTop = v.scrollHeight;
         }
 
-        function fmtBytes(b) { if (!b || b <= 0) return '0B'; const k = 1024, s = ['B', 'KB', 'MB', 'GB'], i = Math.floor(Math.log(b) / Math.log(k)); return (b / Math.pow(k, i)).toFixed(1) + s[i]; }
-        function fmtSpeed(v) { if (!v || v <= 0) return '-'; return v < 1048576 ? (v / 1024).toFixed(1) + 'KB/s' : (v / 1048576).toFixed(2) + 'MB/s'; }
-        function fmtETA(s) { if (s == null || s < 0 || !isFinite(s)) return '—'; s = Math.round(s); if (s < 60) return s + 's'; const m = Math.floor(s / 60), sec = s % 60; if (m < 60) return m + 'm ' + sec + 's'; const h = Math.floor(m / 60); return h + 'h ' + (m % 60) + 'm'; }
-
-        function showToast(m, danger = false) { const t = document.getElementById('toast'); t.innerText = m; t.style.background = danger ? '#d93025' : '#1e8e3e'; t.style.bottom = '20px'; setTimeout(() => t.style.bottom = '-100px', 3500); }
-
-        // styled confirmation modal (replaces browser confirm())
-        let _confirmCb = null;
-        function showConfirm(title, bodyHtml, okLabel, okColor, cb) {
-            document.getElementById('confirm-title').innerText = title;
-            document.getElementById('confirm-body').innerHTML = bodyHtml;
-            const ok = document.getElementById('confirm-ok');
-            ok.innerText = okLabel || 'Confirm'; ok.style.background = okColor || '#1a73e8';
-            _confirmCb = cb;
-            document.getElementById('confirm-modal').style.display = 'flex';
-        }
-        function hideConfirm() { document.getElementById('confirm-modal').style.display = 'none'; _confirmCb = null; }
-        document.getElementById('confirm-ok').addEventListener('click', () => { const cb = _confirmCb; hideConfirm(); if (cb) cb(); });
-        function sendAction(a) { apiFetch('/api/action/' + a); }
-
+        // ---------- settings ----------
         function loadConfig() {
             apiFetch('/api/config').then(d => {
-                document.getElementById('autodel-toggle').checked = d.auto_delete_after_upload || false;
                 document.getElementById('turbo-toggle').checked = d.turbo_mode || false;
                 document.getElementById('compress-toggle').checked = d.compress_media || false;
                 document.getElementById('report-toggle').checked = d.daily_report !== undefined ? d.daily_report : true;
+                document.getElementById('autodel-toggle').checked = d.auto_delete_after_upload || false;
             });
         }
         function saveSettings() {
             apiFetch('/api/settings', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
                     auto_delete: document.getElementById('autodel-toggle').checked,
                     turbo_mode: document.getElementById('turbo-toggle').checked,
                     compress_media: document.getElementById('compress-toggle').checked,
@@ -1264,25 +1127,254 @@
                 })
             });
         }
-        function confirmAutoDelete(e) {
+        function confirmAutoDelete() {
             const cb = document.getElementById('autodel-toggle');
             if (cb.checked) {
-                cb.checked = false; // don't enable until confirmed
-                showConfirm('Enable Auto-delete?',
-                    'Files will be <b>permanently deleted</b> from local storage right after they upload. This cannot be undone.',
-                    'Enable', '#d93025', () => { cb.checked = true; saveSettings(); });
-            } else { saveSettings(); }
+                cb.checked = false;
+                showConfirm('Enable auto-delete?', 'Local files are <b>permanently deleted</b> right after they upload.', 'Enable', true, () => { cb.checked = true; saveSettings(); });
+            } else saveSettings();
         }
+        function backupNow() { showToast('🗄️ Backing up…'); apiFetch('/api/action/backup_now', { method: 'POST' }).then(r => showToast(r.status === 'success' ? '🗄️ Backup sent' : '⚠️ Backup failed', r.status !== 'success')); }
 
-        // reports
-        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
-        function openReports() {
-            document.getElementById('report-modal').style.display = 'flex';
-            apiFetch('/api/daily_reports').then(data => {
-                document.getElementById('report-list').innerHTML = data.length ? data.map(r => `<li><b>📅 ${r.date}</b><span style="background:#e8eaed;padding:4px 8px;border-radius:6px;color:#1a73e8;font-weight:bold;">${r.count}</span></li>`).join('') : "<li style='justify-content:center;color:#888;'>No data</li>";
+        // ---------- Telegram login ----------
+        function openTgLogin() { tgShowStep('phone'); document.getElementById('tg-error').style.display = 'none'; document.getElementById('tg-login-modal').classList.add('open'); }
+        function tgShowStep(s) { ['phone', 'code', '2fa'].forEach(x => document.getElementById('tg-step-' + x).style.display = (x === s ? 'block' : 'none')); }
+        function tgError(m) { const e = document.getElementById('tg-error'); e.innerText = m; e.style.display = 'block'; }
+        function tgSendCode() {
+            const phone = document.getElementById('tg-phone').value.trim(); if (!phone) { tgError('Enter phone number'); return; }
+            btnBusy('btn-sendcode', true, 'Sending…');
+            tgHandle('/api/auth/send_code', { phone }).then(() => { document.getElementById('tg-error').style.display = 'none'; tgShowStep('code'); })
+                .catch(e => tgError(e.message)).finally(() => btnBusy('btn-sendcode', false));
+        }
+        function tgVerifyCode() {
+            const code = document.getElementById('tg-code').value.trim(); btnBusy('btn-verify', true, 'Verifying…');
+            tgHandle('/api/auth/verify_code', { code }).then(res => { if (res.status === 'password_needed') { document.getElementById('tg-error').style.display = 'none'; tgShowStep('2fa'); } else tgLoggedIn(); })
+                .catch(e => tgError(e.message)).finally(() => btnBusy('btn-verify', false));
+        }
+        function tgVerifyPassword() {
+            const password = document.getElementById('tg-2fa').value; btnBusy('btn-2fa', true, 'Confirming…');
+            tgHandle('/api/auth/verify_password', { password }).then(tgLoggedIn).catch(e => tgError(e.message)).finally(() => btnBusy('btn-2fa', false));
+        }
+        function tgLoggedIn() { closeModal('tg-login-modal'); showToast('✅ Telegram connected'); refreshSnapshot(); refreshAccount(); }
+        function tgLogout() {
+            showConfirm('Disconnect Telegram?', 'You will need to sign in again with your phone + code.', 'Logout', true, () => {
+                btnBusy('logout-btn', true, '…');
+                tgPost('/api/auth/logout', {}).then(() => { showToast('👋 Logged out'); window._tgPrompted = false; refreshSnapshot(); refreshAccount(); openTgLogin(); }).finally(() => btnBusy('logout-btn', false));
             });
         }
-        function sendReport() { apiFetch('/api/action/send_report').then(() => { showToast('📤 Report sent'); closeModal('report-modal'); }); }
+        function refreshAccount() {
+            apiFetch('/api/auth/status').then(d => {
+                const el = document.getElementById('tg-account'), btn = document.getElementById('logout-btn');
+                const on = d.auth_state === 'authorized' && d.me;
+                if (on) { el.style.display = 'block'; el.innerHTML = `✅ Connected as <b>${d.me.first_name || ''}</b> ${d.me.username ? '@' + d.me.username : ''}`; }
+                else el.style.display = 'none';
+                btn.style.display = on ? 'inline-flex' : 'none';
+            });
+        }
+
+        // ---------- group setup ----------
+        function openGroupModal() { document.getElementById('group-modal').classList.add('open'); document.getElementById('topic-section').style.display = 'none'; loadGroups(); }
+        function loadGroups() {
+            apiFetch('/api/groups').then(list => {
+                document.getElementById('group-list').innerHTML = list.length ? list.map(g =>
+                    `<li><span>${g.is_forum ? '🧵' : '👥'} ${g.title} <span class="qstate">${g.role || ''}</span></span><button class="btn btn-primary btn-sm" onclick="selectGroup(${g.id},'${(g.title || '').replace(/'/g, '')}',${g.is_forum})">Select</button></li>`
+                ).join('') : "<li class='muted'>No groups you own/admin</li>";
+            }).catch(() => { document.getElementById('group-list').innerHTML = "<li class='muted' style='color:var(--red)'>Log in first</li>"; });
+        }
+        function createGroup() {
+            const title = document.getElementById('ng-title').value.trim(); if (!title) { showToast('Enter a title', true); return; }
+            tgHandle('/api/groups/create', { title, enable_topics: document.getElementById('ng-topics').checked }).then(g => {
+                showToast('✅ Group created'); document.getElementById('ng-title').value = '';
+                setTargetGroup(g.id); selectGroup(g.id, g.title, document.getElementById('ng-topics').checked); loadGroups();
+            }).catch(e => showToast(e.message, true));
+        }
+        let selectedGroupId = null;
+        function selectGroup(id, title, isForum) {
+            selectedGroupId = id;
+            tgHandle('/api/groups/select', { group_id: id }).then(() => { setTargetGroup(id, title); showToast('🎯 Target set'); });
+            document.getElementById('topic-section').style.display = 'block';
+            document.getElementById('topic-create-wrap').style.display = isForum ? 'block' : 'none';
+            loadTopics(id, isForum);
+        }
+        function loadTopics(id, isForum) {
+            if (!isForum) { document.getElementById('topic-list').innerHTML = "<li class='muted'>No Topics — files go to the main chat.</li>"; return; }
+            apiFetch(`/api/groups/${id}/topics`).then(d => {
+                document.getElementById('topic-list').innerHTML = (d.topics && d.topics.length) ? d.topics.map(t =>
+                    `<li><span>🧵 ${t.title}</span><span class="qstate">ID ${t.id}</span></li>`).join('') : "<li class='muted'>No topics yet</li>";
+            });
+        }
+        function createTopic() {
+            const title = document.getElementById('nt-title').value.trim(); if (!title || !selectedGroupId) { showToast('Enter topic title', true); return; }
+            tgHandle('/api/topics/create', { group_id: selectedGroupId, title }).then(t => { showToast(`✅ Topic '${t.title}'`); document.getElementById('nt-title').value = ''; loadTopics(selectedGroupId, true); }).catch(e => showToast(e.message, true));
+        }
+        function setTargetGroup(id, title) { currentGroupId = id; document.getElementById('target-group').innerText = title ? `${title} (${id})` : id; }
+
+        // ---------- reports ----------
+        function openReports() {
+            document.getElementById('report-modal').classList.add('open');
+            apiFetch('/api/daily_reports').then(data => {
+                document.getElementById('report-list').innerHTML = data.length ? data.map(r =>
+                    `<li><b>📅 ${r.date}</b><span class="qstate">${r.count} files</span></li>`).join('') : "<li class='muted'>No data</li>";
+            });
+        }
+        function sendReport() { apiFetch('/api/action/send_report', { method: 'POST' }).then(() => { showToast('📤 Report sent'); closeModal('report-modal'); }); }
+
+        // ---------- ADD wizard ----------
+        let addMode = 'local', scanData = null, pickedFiles = [], addTopics = [], addGroupForum = false, addStepN = 1;
+        const LABEL = { image: 'Images', video: 'Videos', audio: 'Audios', document: 'Documents', coding: 'Coding', compressed: 'Compressed', program: 'Programme', other: 'Others' };
+        const FILE_CATEGORIES = {
+            image: ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg', '.tiff', '.tif', '.heic', '.heif', '.ico'],
+            video: ['.mp4', '.mkv', '.avi', '.mov', '.webm', '.ts', '.flv', '.wmv', '.m4v', '.mpeg', '.mpg', '.3gp', '.m2ts'],
+            audio: ['.mp3', '.wav', '.flac', '.aac', '.ogg', '.m4a', '.wma', '.opus', '.amr', '.aiff', '.mid'],
+            document: ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.txt', '.rtf', '.odt', '.ods', '.odp', '.csv', '.epub', '.md'],
+            coding: ['.py', '.js', '.ts', '.jsx', '.tsx', '.java', '.c', '.cpp', '.cc', '.h', '.hpp', '.cs', '.go', '.rs', '.rb', '.php', '.html', '.htm', '.css', '.scss', '.json', '.xml', '.yaml', '.yml', '.sh', '.bat', '.ps1', '.sql', '.kt', '.swift', '.dart', '.r', '.lua', '.pl'],
+            compressed: ['.zip', '.rar', '.7z', '.tar', '.gz', '.bz2', '.xz', '.tgz', '.iso', '.cab', '.arj'],
+            program: ['.exe', '.msi', '.apk', '.deb', '.rpm', '.dmg', '.appimage', '.bin', '.app', '.jar'],
+        };
+        function fileTypeOf(name) { const ext = '.' + (name.split('.').pop() || '').toLowerCase(); for (const c in FILE_CATEGORIES) if (FILE_CATEGORIES[c].includes(ext)) return c; return 'other'; }
+
+        function openAddModal() {
+            if (!currentGroupId) { showToast('Set a target group first', true); openGroupModal(); return; }
+            addMode = 'local'; scanData = null; pickedFiles = []; addStepN = 1;
+            document.getElementById('scan-result').style.display = 'none';
+            document.getElementById('picked-count').innerText = '';
+            document.getElementById('scan-path').value = '';
+            addTab('local'); showAddStep();
+            addTopics = []; addGroupForum = false;
+            apiFetch(`/api/groups/${currentGroupId}/topics`).then(d => { addGroupForum = !!d.is_forum; addTopics = d.topics || []; renderRouting(); }).catch(() => renderRouting());
+            document.getElementById('add-modal').classList.add('open');
+        }
+        function addTab(m) {
+            addMode = m;
+            document.getElementById('pane-local').style.display = m === 'local' ? 'block' : 'none';
+            document.getElementById('pane-upload').style.display = m === 'upload' ? 'block' : 'none';
+            document.getElementById('tab-local').classList.toggle('on', m === 'local');
+            document.getElementById('tab-upload').classList.toggle('on', m === 'upload');
+        }
+        function showAddStep() {
+            [1, 2, 3].forEach(n => document.getElementById('add-s' + n).style.display = n === addStepN ? 'block' : 'none');
+            document.querySelectorAll('.steps .st').forEach(el => el.classList.toggle('active', +el.dataset.st <= addStepN));
+            document.getElementById('add-back').style.display = addStepN > 1 ? 'inline-flex' : 'none';
+            document.getElementById('add-next').style.display = addStepN < 3 ? 'inline-flex' : 'none';
+            document.getElementById('add-submit').style.display = addStepN === 3 ? 'inline-flex' : 'none';
+            document.getElementById('add-title').innerText = ['', '📥 Choose source', '🎯 Choose destination', '✅ Review & add'][addStepN];
+            if (addStepN === 3) renderSummary();
+        }
+        function addStep(dir) {
+            if (dir === 1) {
+                if (addStepN === 1) {  // validate source
+                    if (addMode === 'local' && !scanData) { showToast('Scan a folder path first', true); return; }
+                    if (addMode === 'upload' && !pickedFiles.length) { showToast('Pick files first', true); return; }
+                    renderRouting();
+                }
+            }
+            addStepN = Math.max(1, Math.min(3, addStepN + dir));
+            showAddStep();
+        }
+        function doScan() {
+            const path = document.getElementById('scan-path').value.trim(); if (!path) { showToast('Enter a path', true); return; }
+            btnBusy('scan-btn', true, 'Scanning…');
+            tgHandle('/api/scan', { path }).then(d => {
+                scanData = d;
+                document.getElementById('scan-result').style.display = 'block';
+                document.getElementById('scan-result').innerHTML = `<b>${d.total_files}</b> files · <b>${fmtBytes(d.total_size)}</b><br>📁 ${d.subfolders.length} subfolder(s) · ${d.extensions.slice(0, 6).map(e => e.ext + ':' + e.count).join(' ')}`;
+            }).catch(e => showToast(e.message, true)).finally(() => btnBusy('scan-btn', false));
+        }
+        window.addEventListener('DOMContentLoaded', () => {
+            const setPicked = (list) => { pickedFiles = Array.from(list); document.getElementById('picked-count').innerText = `${pickedFiles.length} file(s) selected`; };
+            document.getElementById('file-input').addEventListener('change', e => setPicked(e.target.files));
+            document.getElementById('folder-input').addEventListener('change', e => setPicked(e.target.files));
+            const dz = document.getElementById('drop-zone');
+            ['dragover', 'dragenter'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('hover'); }));
+            ['dragleave', 'drop'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('hover'); }));
+            dz.addEventListener('drop', e => { if (e.dataTransfer.files.length) setPicked(e.dataTransfer.files); });
+        });
+        function foldersFromPicked() { const m = {}; pickedFiles.forEach(f => { const rp = f.webkitRelativePath || f.name; const parts = rp.split('/'); const top = parts.length > 1 ? parts[0] : '.'; m[top] = (m[top] || 0) + 1; }); return Object.entries(m).map(([name, count]) => ({ name, count })); }
+
+        function topicSelect(id) {
+            if (!addGroupForum) return `<input type="hidden" id="${id}" value="0"><p class="muted" style="margin:4px 0;">Group has no Topics — files go to the main chat.</p>`;
+            const opts = ['<option value="1">General</option>'].concat(addTopics.map(t => `<option value="${t.id}">${t.title} (ID ${t.id})</option>`)).join('');
+            return `<select id="${id}" class="input">${opts}</select>`;
+        }
+        function renderRouting() {
+            const mode = document.getElementById('route-mode').value, box = document.getElementById('route-fields');
+            if (mode === 'topic') box.innerHTML = `<label class="fld">All files →</label>${topicSelect('rt-topic')}`;
+            else if (mode === 'extension') box.innerHTML = `<p class="muted" style="margin-top:8px;">Auto-creates topics as needed: 🖼️ Images · 🎬 Videos · 🎵 Audios · 📄 Documents · 💻 Coding · 🗜️ Compressed · ⚙️ Programme · 📦 Others</p>`;
+            else {
+                const subs = scanData ? scanData.subfolders : foldersFromPicked();
+                box.innerHTML = subs.length ? `<p class="muted" style="margin-top:8px;">A topic is auto-created per folder: ${subs.map(s => (s.name === '.' ? 'General' : s.name)).join(' · ')}</p>` : `<p class="muted" style="margin-top:8px;">Scan/pick a folder to see subfolders.</p>`;
+            }
+        }
+        function buildRouting() {
+            const mode = document.getElementById('route-mode').value, sendMode = document.getElementById('send-mode').value;
+            const zipTopic = mode === 'topic' ? (parseInt((document.getElementById('rt-topic') || {}).value) || 0) : 0;
+            let r = mode === 'topic' ? { mode: 'topic', topic_id: parseInt((document.getElementById('rt-topic') || {}).value) || 0 }
+                : mode === 'extension' ? { mode: 'extension', auto_create: true } : { mode: 'folder', auto_create: true };
+            r.send_mode = sendMode; r.zip_topic_id = zipTopic; return r;
+        }
+        function renderSummary() {
+            const routing = buildRouting();
+            const src = addMode === 'local' ? (scanData ? `${scanData.total_files} files · ${fmtBytes(scanData.total_size)}` : 'local path') : `${pickedFiles.length} file(s) from device`;
+            const org = { extension: 'By file type', folder: 'By folder name', topic: 'Single topic' }[routing.mode];
+            const send = { individual: 'Individual files', zip: 'One ZIP', both: 'Files + ZIP' }[routing.send_mode];
+            document.getElementById('add-summary').innerHTML = `📦 <b>Source:</b> ${src}<br>🗂️ <b>Send as:</b> ${send}<br>🎯 <b>Organize:</b> ${org}`;
+        }
+        function submitAdd() {
+            const routing = buildRouting();
+            if (addMode === 'local') {
+                const path = document.getElementById('scan-path').value.trim();
+                setAddBusy(true, 'Queuing…');
+                tgHandle('/api/queue/add', { path, routing }).then(r => {
+                    let m = `➕ Queued ${r.added}` + (r.skipped ? ` (skipped ${r.skipped})` : '');
+                    if (r.topics_created) m += ` · ${r.topics_created} topic(s)`;
+                    if (r.zip) m += ` · zip queued`;
+                    showToast(m); closeModal('add-modal');
+                }).catch(e => showToast(e.message, true)).finally(() => setAddBusy(false));
+            } else uploadFromDevice(routing);
+        }
+        function setAddBusy(b, l) { btnBusy('add-submit', b, l); }
+        function showBanner(t) { document.getElementById('banner-text').innerText = t; document.getElementById('banner').style.display = 'flex'; }
+        function hideBanner() { document.getElementById('banner').style.display = 'none'; }
+
+        async function uploadFromDevice(routing) {
+            if (!pickedFiles.length) { showToast('Pick files first', true); return; }
+            if (routing.send_mode === 'zip' || routing.send_mode === 'both') {
+                const session = 'z' + Date.now() + Math.random().toString(36).slice(2, 8);
+                const files = pickedFiles.slice(); closeModal('add-modal');
+                showBanner(`Staging 0/${files.length} for ZIP…`);
+                let done = 0;
+                for (const f of files) {
+                    const fd = new FormData(); fd.append('file', f); fd.append('rel_path', f.webkitRelativePath || f.name);
+                    fd.append('last_modified', f.lastModified); fd.append('session', session); fd.append('stage_only', 'true');
+                    try { await fetch('/api/upload', { method: 'POST', body: fd }); } catch (e) { }
+                    done++; showBanner(`Staging ${done}/${files.length} for ZIP…`);
+                }
+                showBanner('Zipping & queuing…');
+                try { await tgHandle('/api/zip_session', { session, topic_id: routing.zip_topic_id || 0 }); showToast('📦 Folder zipped & queued'); }
+                catch (e) { showToast(e.message, true); }
+                hideBanner(); return;
+            }
+            setAddBusy(true, 'Preparing…');
+            let folderMap = {}, typeMap = {};
+            try {
+                if (routing.mode === 'folder') folderMap = (await tgHandle('/api/topics/ensure_folders', { group_id: currentGroupId, folders: foldersFromPicked().map(s => s.name) })).mapping || {};
+                else if (routing.mode === 'extension') typeMap = (await tgHandle('/api/topics/ensure_folders', { group_id: currentGroupId, folders: [...new Set(pickedFiles.map(f => LABEL[fileTypeOf(f.name)]))] })).mapping || {};
+            } catch (e) { setAddBusy(false); showToast(e.message, true); return; }
+            const files = pickedFiles.slice(); setAddBusy(false); closeModal('add-modal');
+            showBanner(`Sending 0/${files.length}…`);
+            let done = 0, ok = 0;
+            for (const f of files) {
+                const rel = f.webkitRelativePath || f.name;
+                let topic = 0;
+                if (routing.mode === 'topic') topic = routing.topic_id;
+                else if (routing.mode === 'extension') topic = typeMap[LABEL[fileTypeOf(f.name)]] || 1;
+                else { const parts = rel.split('/'); topic = folderMap[parts.length > 1 ? parts[0] : '.'] || 1; }
+                const fd = new FormData(); fd.append('file', f); fd.append('topic_id', topic); fd.append('rel_path', rel); fd.append('last_modified', f.lastModified);
+                try { const r = await fetch('/api/upload', { method: 'POST', body: fd }); const j = await r.json(); if (r.ok && j.queued) ok++; } catch (e) { }
+                done++; showBanner(`Sending ${done}/${files.length}…`);
+            }
+            hideBanner(); showToast(`⬆️ Sent ${ok}/${files.length} to the queue`);
+        }
 
         startApp();
     </script>
