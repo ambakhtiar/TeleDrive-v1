@@ -677,6 +677,16 @@
                     </div>
                 </div>
 
+                <b style="font-size:13px;">📦 Send folder as</b>
+                <div class="form-wrapper" style="margin-bottom:10px;">
+                    <select id="send-mode" class="form-input" onchange="renderRouting()">
+                        <option value="individual" selected>Individual files (default)</option>
+                        <option value="zip">One ZIP archive</option>
+                        <option value="both">Both — individual files + a ZIP</option>
+                    </select>
+                    <p style="font-size:11px;color:#888;margin:6px 0 0;">ZIP over 2GB is auto-split and re-joined on download. (“Both” works for a local path.)</p>
+                </div>
+
                 <b style="font-size:13px;">🎯 Routing — where should files go?</b>
                 <div class="form-wrapper">
                     <select id="route-mode" class="form-input" onchange="renderRouting()">
@@ -867,9 +877,15 @@
         }
         function buildRouting() {
             const mode = document.getElementById('route-mode').value;
-            if (mode === 'topic') { return { mode: 'topic', topic_id: parseInt(document.getElementById('rt-topic').value) || 0 }; }
-            if (mode === 'extension') { return { mode: 'extension', auto_create: true }; }
-            return { mode: 'folder', auto_create: true };
+            const sendMode = document.getElementById('send-mode').value;
+            const zipTopic = (mode === 'topic') ? (parseInt(document.getElementById('rt-topic').value) || 0) : 0;
+            let r;
+            if (mode === 'topic') { r = { mode: 'topic', topic_id: parseInt(document.getElementById('rt-topic').value) || 0 }; }
+            else if (mode === 'extension') { r = { mode: 'extension', auto_create: true }; }
+            else { r = { mode: 'folder', auto_create: true }; }
+            r.send_mode = sendMode;
+            r.zip_topic_id = zipTopic;
+            return r;
         }
         function setAddBusy(busy, label) {
             const btn = document.getElementById('add-submit');
@@ -894,6 +910,34 @@
         // per-file browser upload (one request per file → a dropped connection never kills the batch)
         async function uploadFromDevice(routing) {
             if (!pickedFiles.length) { showToast('Pick files first', true); return; }
+
+            // ZIP (or "both", treated as ZIP for browser uploads): stage every
+            // file under one session, then zip + queue it server-side.
+            if (routing.send_mode === 'zip' || routing.send_mode === 'both') {
+                const session = 'z' + Date.now() + Math.random().toString(36).slice(2, 8);
+                const zipTopic = routing.zip_topic_id || 0;
+                const files = pickedFiles.slice();
+                setAddBusy(false); closeModal('add-modal');
+                showBanner(`Staging 0/${files.length} for ZIP…`);
+                let done = 0;
+                for (const f of files) {
+                    const rel = f.webkitRelativePath || f.name;
+                    const fd = new FormData();
+                    fd.append('file', f); fd.append('rel_path', rel);
+                    fd.append('last_modified', f.lastModified);
+                    fd.append('session', session); fd.append('stage_only', 'true');
+                    try { await fetch('/api/upload', { method: 'POST', body: fd }); } catch (e) { }
+                    done++; showBanner(`Staging ${done}/${files.length} for ZIP…`);
+                }
+                showBanner('Zipping & queuing…');
+                try {
+                    await tgHandle('/api/zip_session', { session, topic_id: zipTopic });
+                    showToast('📦 Folder zipped & queued');
+                } catch (e) { showToast(e.message, true); }
+                hideBanner();
+                return;
+            }
+
             setAddBusy(true, 'Preparing…');
             // Resolve the topic map up front (auto-creating topics as needed).
             let folderMap = {}, typeMap = {};

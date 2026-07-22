@@ -18,6 +18,7 @@ from app.services.downloading import DownloadMixin
 from app.services.reports import ReportMixin
 from app.services.maintenance import MaintenanceMixin
 from app.services.backup import BackupMixin
+from app.services.zipping import ZipMixin
 
 
 class UploaderService(
@@ -29,6 +30,7 @@ class UploaderService(
     ReportMixin,
     MaintenanceMixin,
     BackupMixin,
+    ZipMixin,
     UploaderBase,
 ):
     """Single-user uploader. Started once from the FastAPI lifespan."""
