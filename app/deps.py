@@ -1,7 +1,18 @@
 """Shared dependencies for API routers: the service handle, an auth guard,
 and the Pydantic request models used across routers."""
-from fastapi import HTTPException
+from fastapi import HTTPException, Request
 from pydantic import BaseModel
+
+from app import config
+
+
+def require_dashboard(request: Request):
+    """Gate all /api routes behind DASHBOARD_PASSWORD when it is set. No
+    password configured → wide open (default)."""
+    if not config.DASHBOARD_PASSWORD:
+        return
+    if request.cookies.get("tgb_auth") != config.dashboard_token():
+        raise HTTPException(status_code=401, detail="Dashboard login required.")
 
 # Set once from the app lifespan (app/server.py). Access via get_service() so
 # routers always see the live instance rather than a None captured at import.

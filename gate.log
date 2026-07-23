@@ -1,0 +1,53 @@
+INFO:     Started server process [10336]
+INFO:     Waiting for application startup.
+INFO:telethon.network.mtprotosender:Connecting to 149.154.167.51:443/TcpFull...
+INFO:telethon.network.mtprotosender:Connection to 149.154.167.51:443/TcpFull complete!
+INFO:uploader:\U0001f511 Not logged in. Use the web login (phone \u2192 OTP).
+INFO:uploader:\U0001f31f Uploader service started.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8099 (Press CTRL+C to quit)
+INFO:telethon.network.connection.connection:The server closed the connection while sending
+WARNING:telethon.network.connection.connection:Server closed the connection: [WinError 1236] The network connection was aborted by the local system
+INFO:telethon.network.connection.connection:<class 'ConnectionAbortedError'> during disconnect: [WinError 1236] The network connection was aborted by the local system
+INFO:telethon.network.mtprotosender:Connection closed while receiving data: [WinError 1236] The network connection was aborted by the local system
+INFO:telethon.network.mtprotosender:Closing current connection to begin reconnect...
+INFO:telethon.network.mtprotosender:Connecting to 149.154.167.51:443/TcpFull...
+WARNING:telethon.network.mtprotosender:Attempt 1 at connecting failed: OSError: [WinError 1231] The network location cannot be reached. For information about network troubleshooting, see Windows Help
+INFO:telethon.network.mtprotosender:Connection to 149.154.167.51:443/TcpFull complete!
+WARNING:telethon.network.mtprotosender:Security error while unpacking a received message: Server replied with a wrong session ID (see FAQ for details)
+WARNING:telethon.network.mtprotostate:Server resent the older message 7665456246519703553, ignoring
+INFO:telethon.network.connection.connection:The server closed the connection while sending
+WARNING:telethon.network.connection.connection:Server closed the connection: [WinError 1236] The network connection was aborted by the local system
+INFO:telethon.network.connection.connection:<class 'ConnectionAbortedError'> during disconnect: [WinError 1236] The network connection was aborted by the local system
+INFO:telethon.network.mtprotosender:Connection closed while receiving data: [WinError 1236] The network connection was aborted by the local system
+INFO:telethon.network.mtprotosender:Closing current connection to begin reconnect...
+INFO:telethon.network.mtprotosender:Connecting to 149.154.167.51:443/TcpFull...
+WARNING:telethon.network.mtprotosender:Attempt 1 at connecting failed: OSError: [WinError 1231] The network location cannot be reached. For information about network troubleshooting, see Windows Help
+WARNING:telethon.network.mtprotosender:Attempt 2 at connecting failed: OSError: [WinError 1231] The network location cannot be reached. For information about network troubleshooting, see Windows Help
+INFO:telethon.network.mtprotosender:Connection to 149.154.167.51:443/TcpFull complete!
+WARNING:telethon.network.mtprotosender:Security error while unpacking a received message: Server replied with a wrong session ID (see FAQ for details)
+WARNING:telethon.network.connection.connection:Server closed the connection: [WinError 121] The semaphore timeout period has expired
+INFO:telethon.network.mtprotosender:Connection closed while receiving data: [WinError 121] The semaphore timeout period has expired
+INFO:telethon.network.mtprotosender:Closing current connection to begin reconnect...
+INFO:telethon.network.connection.connection:<class 'OSError'> during disconnect: [WinError 121] The semaphore timeout period has expired
+INFO:telethon.network.mtprotosender:Connecting to 149.154.167.51:443/TcpFull...
+INFO:telethon.network.mtprotosender:Connection to 149.154.167.51:443/TcpFull complete!
+WARNING:telethon.network.mtprotostate:Server resent the older message 7665583533143711745, ignoring
+INFO:telethon.network.connection.connection:The server closed the connection while sending
+WARNING:telethon.network.connection.connection:Server closed the connection: [WinError 1236] The network connection was aborted by the local system
+INFO:telethon.network.connection.connection:<class 'ConnectionAbortedError'> during disconnect: [WinError 1236] The network connection was aborted by the local system
+INFO:telethon.network.mtprotosender:Connection closed while receiving data: [WinError 1236] The network connection was aborted by the local system
+INFO:telethon.network.mtprotosender:Closing current connection to begin reconnect...
+INFO:telethon.network.mtprotosender:Connecting to 149.154.167.51:443/TcpFull...
+INFO:telethon.network.mtprotosender:Connection to 149.154.167.51:443/TcpFull complete!
+WARNING:telethon.network.mtprotosender:Security error while unpacking a received message: Server replied with a wrong session ID (see FAQ for details)
+WARNING:telethon.network.connection.connection:Server closed the connection: [WinError 1236] The network connection was aborted by the local system
+INFO:telethon.network.mtprotosender:Connection closed while receiving data: [WinError 1236] The network connection was aborted by the local system
+INFO:telethon.network.mtprotosender:Closing current connection to begin reconnect...
+INFO:telethon.network.connection.connection:<class 'ConnectionAbortedError'> during disconnect: [WinError 1236] The network connection was aborted by the local system
+INFO:telethon.network.mtprotosender:Connecting to 149.154.167.51:443/TcpFull...
+WARNING:telethon.network.mtprotosender:Attempt 1 at connecting failed: OSError: [WinError 1232] The network location cannot be reached. For information about network troubleshooting, see Windows Help
+WARNING:telethon.network.mtprotosender:Attempt 2 at connecting failed: OSError: [WinError 1231] The network location cannot be reached. For information about network troubleshooting, see Windows Help
+WARNING:telethon.network.mtprotosender:Attempt 3 at connecting failed: OSError: [WinError 1231] The network location cannot be reached. For information about network troubleshooting, see Windows Help
+INFO:telethon.network.mtprotosender:Connection to 149.154.167.51:443/TcpFull complete!
+WARNING:telethon.network.mtprotostate:Server resent the older message 7665700724553053185, ignoring

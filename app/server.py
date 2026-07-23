@@ -9,11 +9,13 @@ import io
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import (FastAPI, WebSocket, WebSocketDisconnect, Request, Response,
+                     HTTPException, Depends)
 from fastapi.responses import HTMLResponse, FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from app import config, deps
+from app.deps import require_dashboard
 from app.services import UploaderService
 from app.api import api_router
 
@@ -39,12 +41,33 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Telegram Uploader", lifespan=lifespan)
-app.include_router(api_router)
+app.include_router(api_router, dependencies=[Depends(require_dashboard)])
+
+
+# ---------- optional dashboard login ----------
+@app.get("/dashboard-status")
+def dashboard_status():
+    return {"required": bool(config.DASHBOARD_PASSWORD)}
+
+
+@app.post("/dashboard-login")
+async def dashboard_login(request: Request, response: Response):
+    if not config.DASHBOARD_PASSWORD:
+        return {"ok": True}
+    body = await request.json()
+    if body.get("password") == config.DASHBOARD_PASSWORD:
+        response.set_cookie("tgb_auth", config.dashboard_token(), httponly=True,
+                            samesite="lax", max_age=60 * 60 * 24 * 30)
+        return {"ok": True}
+    raise HTTPException(status_code=401, detail="Wrong password.")
 
 
 # ---------- websocket (live feed) ----------
 @app.websocket("/ws")
 async def ws(websocket: WebSocket):
+    if config.DASHBOARD_PASSWORD and websocket.cookies.get("tgb_auth") != config.dashboard_token():
+        await websocket.close(code=1008)
+        return
     await websocket.accept()
     service = deps.get_service()
     q = service.subscribe()
@@ -60,7 +83,7 @@ async def ws(websocket: WebSocket):
 
 
 # ---------- CSV export ----------
-@app.get("/export.csv")
+@app.get("/export.csv", dependencies=[Depends(require_dashboard)])
 def export_csv(query: str = "", ext: str = "", date_from: str = "",
                date_to: str = "", sort: str = "desc"):
     rows = deps.get_service().db.history(

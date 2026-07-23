@@ -20,6 +20,10 @@ load_dotenv(os.path.join(PROJECT_DIR, ".env"))
 API_ID = int(os.getenv("API_ID", 0) or 0)
 API_HASH = os.getenv("API_HASH", "")
 
+# Optional dashboard password gate. Empty = open (default). When set, the web
+# UI, API and WebSocket require this password (a signed cookie).
+DASHBOARD_PASSWORD = os.getenv("DASHBOARD_PASSWORD", "").strip()
+
 # Root that "local mode" folder scanning is confined to. On Android/Termux this
 # is the shared storage; on a server/cloud it defaults to the project dir so the
 # browser-upload staging area is scannable. Override with SCAN_ROOT.
@@ -164,3 +168,32 @@ def file_type_for(name):
     if ext in VIDEO_EXTS:
         return "video"
     return "other"
+
+
+# ---- persistent secret (used to sign the dashboard cookie + encrypt session) ----
+_SECRET_FILE = os.path.join(DATA_DIR, ".secret")
+
+
+def get_secret():
+    """A stable 32-byte secret persisted in DATA_DIR. Auto-created once."""
+    import secrets
+    try:
+        if os.path.exists(_SECRET_FILE):
+            data = open(_SECRET_FILE, "rb").read()
+            if len(data) >= 16:
+                return data
+        data = secrets.token_bytes(32)
+        with open(_SECRET_FILE, "wb") as f:
+            f.write(data)
+        return data
+    except Exception:
+        return b"tgb-fallback-secret-please-set-SECRET"
+
+
+def dashboard_token():
+    """Signed value for the dashboard auth cookie (empty when no password)."""
+    import hmac
+    import hashlib
+    if not DASHBOARD_PASSWORD:
+        return ""
+    return hmac.new(get_secret(), DASHBOARD_PASSWORD.encode(), hashlib.sha256).hexdigest()

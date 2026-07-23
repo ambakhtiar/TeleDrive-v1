@@ -802,6 +802,21 @@
 
     <!-- ============ MODALS ============ -->
 
+    <!-- dashboard password gate (only when DASHBOARD_PASSWORD is set) -->
+    <div id="dash-modal" class="overlay">
+        <div class="modal" style="max-width:340px;">
+            <div class="mbody" style="text-align:center;">
+                <div style="font-size:34px;">🔒</div>
+                <h3 style="margin:6px 0 4px;">Dashboard locked</h3>
+                <p class="muted" style="margin:0 0 12px;">Enter the password to continue.</p>
+                <input type="password" id="dash-pw" class="input" placeholder="Password"
+                    onkeydown="if(event.key==='Enter')dashLogin()">
+                <button id="dash-btn" class="btn btn-primary btn-block" style="margin-top:12px;" onclick="dashLogin()">Unlock</button>
+                <p id="dash-err" style="color:var(--red);font-size:12px;display:none;margin-top:10px;"></p>
+            </div>
+        </div>
+    </div>
+
     <!-- confirm -->
     <div id="confirm-modal" class="overlay">
         <div class="modal" style="max-width:360px;">
@@ -1005,6 +1020,24 @@
         }
 
         // ---------- lifecycle ----------
+        async function boot() {
+            try {
+                const st = await fetch('/dashboard-status').then(r => r.json());
+                if (st.required) {
+                    const probe = await fetch('/api/stats');
+                    if (probe.status === 401) { document.getElementById('dash-modal').classList.add('open'); return; }
+                }
+            } catch (e) { }
+            startApp();
+        }
+        function dashLogin() {
+            const pw = document.getElementById('dash-pw').value;
+            btnBusy('dash-btn', true, 'Unlocking…');
+            fetch('/dashboard-login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: pw }) })
+                .then(async r => { if (!r.ok) throw new Error('Wrong password'); closeModal('dash-modal'); startApp(); })
+                .catch(e => { const el = document.getElementById('dash-err'); el.innerText = e.message; el.style.display = 'block'; })
+                .finally(() => btnBusy('dash-btn', false));
+        }
         function startApp() { loadConfig(); refreshAccount(); connectWS(); }
         function connectWS() {
             const proto = location.protocol === 'https:' ? 'wss' : 'ws';
@@ -1384,7 +1417,7 @@
             hideBanner(); showToast(`⬆️ Sent ${ok}/${files.length} to the queue`);
         }
 
-        startApp();
+        boot();
     </script>
 </body>
 
