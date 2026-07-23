@@ -197,3 +197,19 @@ def dashboard_token():
     if not DASHBOARD_PASSWORD:
         return ""
     return hmac.new(get_secret(), DASHBOARD_PASSWORD.encode(), hashlib.sha256).hexdigest()
+
+
+# ---- encrypted Telegram session at rest ----
+SESSION_ENC = os.path.join(DATA_DIR, "session.enc")
+
+
+def fernet():
+    """A Fernet cipher keyed by the persisted secret, or None if the
+    'cryptography' package isn't available (then we fall back to a plain
+    file session)."""
+    try:
+        import base64
+        from cryptography.fernet import Fernet
+        return Fernet(base64.urlsafe_b64encode(get_secret()[:32]))
+    except Exception:
+        return None

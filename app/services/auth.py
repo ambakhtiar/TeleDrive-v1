@@ -48,6 +48,7 @@ class AuthMixin:
     def _after_login(self):
         self.auth_state = "authorized"
         self._login_hash = None
+        self._persist_session()  # save the new login as an encrypted blob
         self.log("✅ Logged in to Telegram successfully.")
         self.emit("auth", {"auth_state": self.auth_state})
         return {"status": "authorized"}
@@ -55,6 +56,14 @@ class AuthMixin:
     async def logout(self):
         try:
             await self.client.log_out()
+        except Exception:
+            pass
+        # Drop the encrypted session blob so a logged-out state leaves nothing behind.
+        try:
+            import os
+            from app import config
+            if os.path.exists(config.SESSION_ENC):
+                os.remove(config.SESSION_ENC)
         except Exception:
             pass
         # Telethon can't reuse a logged-out client, so stand up a fresh one

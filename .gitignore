@@ -1,7 +1,9 @@
-# Security & Credentials 
+# Security & Credentials
 .env
 backup_session.session
 backup_session.session-journal
+session.enc
+.secret
 
 # Database & Logs (local data)
 uploads.db

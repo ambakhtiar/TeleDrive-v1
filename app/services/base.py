@@ -1,6 +1,7 @@
 """Core uploader state + lifecycle. Feature methods live in sibling mixins
 (auth, groups, scanning, uploading, downloading, reports) and are assembled
 into the concrete ``UploaderService`` in service.py."""
+import os
 import asyncio
 import logging
 from collections import deque
@@ -64,7 +65,35 @@ class UploaderBase:
 
     # ---------- client lifecycle ----------
     def _make_client(self):
+        # Prefer an encrypted StringSession blob; fall back to the plain file
+        # session (so an existing working login is never lost).
+        f = config.fernet()
+        if f is not None and os.path.exists(config.SESSION_ENC):
+            try:
+                from telethon.sessions import StringSession
+                s = f.decrypt(open(config.SESSION_ENC, "rb").read()).decode()
+                return TelegramClient(StringSession(s), config.API_ID, config.API_HASH)
+            except Exception as e:
+                self.log(f"⚠️ Could not load encrypted session ({e}); using file session.")
         return TelegramClient(config.SESSION_FILE, config.API_ID, config.API_HASH)
+
+    def _persist_session(self):
+        """Save the current (authorized) session as a Fernet-encrypted blob so
+        it lives encrypted at rest. Migrates an existing file session in place."""
+        f = config.fernet()
+        if f is None or not self.client:
+            return
+        try:
+            from telethon.sessions import StringSession
+            s = StringSession.save(self.client.session)
+            if not s:
+                return
+            tmp = config.SESSION_ENC + ".tmp"
+            with open(tmp, "wb") as fh:
+                fh.write(f.encrypt(s.encode()))
+            os.replace(tmp, config.SESSION_ENC)
+        except Exception as e:
+            self.log(f"⚠️ Could not persist encrypted session: {e}")
 
     async def _fresh_client(self):
         """Build and connect a brand-new client. Needed because Telethon
@@ -87,6 +116,7 @@ class UploaderBase:
             await self.client.connect()
             if await self.client.is_user_authorized():
                 self.auth_state = "authorized"
+                self._persist_session()  # migrate file session → encrypted blob
                 self.log("🤖 Session authorized.")
             else:
                 self.auth_state = "unauthorized"
