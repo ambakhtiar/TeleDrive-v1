@@ -1,0 +1,58 @@
+/* Shared color palette for TeleDrive dashboard pages (index.html, history.html). */
+:root {
+    --brand: #229ED9;
+    --brand-2: #2AABEE;
+    --bg: #f4f6f8;
+    --surface: #ffffff;
+    --surface-2: #f7f9fb;
+    --border: #e6e9ee;
+    --text: #1a1f24;
+    --muted: #71787f;
+    --green: #1e8e3e;
+    --green-bg: #e6f4ea;
+    --red: #d93025;
+    --red-bg: #fce8e6;
+    --amber: #e8890c;
+    --amber-bg: #fff3cd;
+    --radius: 14px;
+    --radius-sm: 9px;
+    --shadow: 0 1px 3px rgba(16, 24, 40, .06), 0 8px 24px rgba(16, 24, 40, .06);
+    /* Always-dark surfaces (terminal-style console, toast pill) look the same in both themes. */
+    --console-bg: #0d1117;
+    --console-text: #d6dee6;
+    --toast-bg: #202b36;
+}
+
+:root[data-theme="dark"] {
+    --bg: #0f1418;
+    --surface: #171d23;
+    --surface-2: #1e262d;
+    --border: #2a333b;
+    --text: #e7ecf0;
+    --muted: #97a1ab;
+    --green-bg: #14351f;
+    --red-bg: #3a1b18;
+    --amber-bg: #3a3016;
+    --shadow: 0 1px 3px rgba(0, 0, 0, .4), 0 8px 24px rgba(0, 0, 0, .3);
+}
+
+.theme-toggle {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    padding: 0;
+    font-size: 15px;
+    line-height: 1;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.theme-toggle:active {
+    filter: brightness(.94);
+}
