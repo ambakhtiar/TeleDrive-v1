@@ -3,6 +3,7 @@ import sqlite3
 import hashlib
 import os
 import threading
+import time
 
 
 class Database:
@@ -45,6 +46,19 @@ class Database:
             (hash TEXT PRIMARY KEY, name TEXT, path TEXT, topic_id INTEGER,
              folder_name TEXT, mtime REAL, status TEXT DEFAULT 'pending',
              added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"""
+        )
+        # Raw Telegram upload-part progress for a NON-chunked (single-message)
+        # file: lets pause/resume (or a restart) skip parts already sent to
+        # Telegram instead of re-uploading the whole file from byte 0.
+        self.conn.execute(
+            """CREATE TABLE IF NOT EXISTS upload_sessions
+            (file_hash TEXT PRIMARY KEY, file_id INTEGER, part_size INTEGER,
+             total_parts INTEGER, is_big INTEGER, file_size INTEGER, created_at REAL)"""
+        )
+        self.conn.execute(
+            """CREATE TABLE IF NOT EXISTS upload_parts
+            (file_hash TEXT, part_index INTEGER,
+             PRIMARY KEY (file_hash, part_index))"""
         )
         self.conn.commit()
         self.backfill_from_links()
@@ -146,6 +160,54 @@ class Database:
                 "SELECT part_index FROM file_chunks WHERE file_hash=?", (file_hash,)
             ).fetchall()
         return {r[0] for r in rows}
+
+    # ---------- resumable raw upload-part tracking (non-chunked files) ----------
+    def get_upload_session(self, file_hash, max_age=None):
+        """Existing low-level upload session for this file, or None if absent,
+        the file size no longer matches, or (when max_age given, seconds) it's
+        too old — Telegram file-part handles are only valid for under a day."""
+        with self._lock:
+            row = self.conn.execute(
+                "SELECT file_id, part_size, total_parts, is_big, file_size, created_at "
+                "FROM upload_sessions WHERE file_hash=?", (file_hash,)
+            ).fetchone()
+        if not row:
+            return None
+        if max_age is not None and row[5] is not None and (time.time() - row[5]) > max_age:
+            return None
+        return {"file_id": row[0], "part_size": row[1], "total_parts": row[2],
+                "is_big": bool(row[3]), "file_size": row[4]}
+
+    def set_upload_session(self, file_hash, file_id, part_size, total_parts, is_big, file_size):
+        with self._lock:
+            self.conn.execute(
+                "INSERT OR REPLACE INTO upload_sessions "
+                "(file_hash, file_id, part_size, total_parts, is_big, file_size, created_at) "
+                "VALUES (?,?,?,?,?,?,?)",
+                (file_hash, file_id, part_size, total_parts, int(is_big), file_size, time.time()),
+            )
+            self.conn.commit()
+
+    def clear_upload_session(self, file_hash):
+        with self._lock:
+            self.conn.execute("DELETE FROM upload_sessions WHERE file_hash=?", (file_hash,))
+            self.conn.execute("DELETE FROM upload_parts WHERE file_hash=?", (file_hash,))
+            self.conn.commit()
+
+    def done_upload_parts(self, file_hash):
+        with self._lock:
+            rows = self.conn.execute(
+                "SELECT part_index FROM upload_parts WHERE file_hash=?", (file_hash,)
+            ).fetchall()
+        return {r[0] for r in rows}
+
+    def add_upload_part(self, file_hash, part_index):
+        with self._lock:
+            self.conn.execute(
+                "INSERT OR IGNORE INTO upload_parts (file_hash, part_index) VALUES (?,?)",
+                (file_hash, part_index),
+            )
+            self.conn.commit()
 
     @staticmethod
     def _parse_link(link):

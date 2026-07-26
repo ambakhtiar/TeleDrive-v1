@@ -85,11 +85,17 @@ class ScanMixin:
         subfolders: dict[str, int] = {}
         total_files = 0
         total_size = 0
+        mtime_lo = mtime_hi = None
         for root, _, files in os.walk(path):
             for f in files:
                 total_files += 1
                 try:
-                    total_size += os.path.getsize(os.path.join(root, f))
+                    st = os.stat(os.path.join(root, f))
+                    total_size += st.st_size
+                    if mtime_lo is None or st.st_mtime < mtime_lo:
+                        mtime_lo = st.st_mtime
+                    if mtime_hi is None or st.st_mtime > mtime_hi:
+                        mtime_hi = st.st_mtime
                 except OSError:
                     pass
                 ext = os.path.splitext(f)[1].lower() or "(none)"
@@ -97,10 +103,15 @@ class ScanMixin:
                 rel = os.path.relpath(root, path)
                 top = "." if rel == "." else rel.split(os.sep)[0]
                 subfolders[top] = subfolders.get(top, 0) + 1
+        from datetime import datetime
+        date_from = datetime.fromtimestamp(mtime_lo).strftime("%Y-%m-%d") if mtime_lo else None
+        date_to = datetime.fromtimestamp(mtime_hi).strftime("%Y-%m-%d") if mtime_hi else None
         return {
             "path": path,
             "total_files": total_files,
             "total_size": total_size,
+            "date_from": date_from,
+            "date_to": date_to,
             "extensions": sorted(
                 [{"ext": k, "count": v} for k, v in ext_counts.items()],
                 key=lambda x: -x["count"],

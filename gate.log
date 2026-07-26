@@ -51,3 +51,26 @@ WARNING:telethon.network.mtprotosender:Attempt 2 at connecting failed: OSError: 
 WARNING:telethon.network.mtprotosender:Attempt 3 at connecting failed: OSError: [WinError 1231] The network location cannot be reached. For information about network troubleshooting, see Windows Help
 INFO:telethon.network.mtprotosender:Connection to 149.154.167.51:443/TcpFull complete!
 WARNING:telethon.network.mtprotostate:Server resent the older message 7665700724553053185, ignoring
+WARNING:telethon.network.connection.connection:Server closed the connection: [WinError 121] The semaphore timeout period has expired
+INFO:telethon.network.mtprotosender:Connection closed while receiving data: [WinError 121] The semaphore timeout period has expired
+INFO:telethon.network.mtprotosender:Closing current connection to begin reconnect...
+INFO:telethon.network.connection.connection:<class 'OSError'> during disconnect: [WinError 121] The semaphore timeout period has expired
+INFO:telethon.network.mtprotosender:Connecting to 149.154.167.51:443/TcpFull...
+INFO:telethon.network.mtprotosender:Connection to 149.154.167.51:443/TcpFull complete!
+WARNING:telethon.network.mtprotostate:Server resent the older message 7665730081449351169, ignoring
+WARNING:telethon.network.connection.connection:Server closed the connection: [WinError 121] The semaphore timeout period has expired
+INFO:telethon.network.mtprotosender:Connection closed while receiving data: [WinError 121] The semaphore timeout period has expired
+INFO:telethon.network.mtprotosender:Closing current connection to begin reconnect...
+INFO:telethon.network.connection.connection:<class 'OSError'> during disconnect: [WinError 121] The semaphore timeout period has expired
+INFO:telethon.network.mtprotosender:Connecting to 149.154.167.51:443/TcpFull...
+WARNING:telethon.network.mtprotosender:Attempt 1 at connecting failed: OSError: [WinError 1232] The network location cannot be reached. For information about network troubleshooting, see Windows Help
+WARNING:telethon.network.mtprotosender:Attempt 2 at connecting failed: OSError: [WinError 1232] The network location cannot be reached. For information about network troubleshooting, see Windows Help
+WARNING:telethon.network.mtprotosender:Attempt 3 at connecting failed: OSError: [WinError 1232] The network location cannot be reached. For information about network troubleshooting, see Windows Help
+WARNING:telethon.network.mtprotosender:Attempt 4 at connecting failed: OSError: [WinError 1232] The network location cannot be reached. For information about network troubleshooting, see Windows Help
+INFO:telethon.network.mtprotosender:Connection to 149.154.167.51:443/TcpFull complete!
+WARNING:telethon.network.connection.connection:Server closed the connection: [WinError 121] The semaphore timeout period has expired
+INFO:telethon.network.mtprotosender:Connection closed while receiving data: [WinError 121] The semaphore timeout period has expired
+INFO:telethon.network.mtprotosender:Closing current connection to begin reconnect...
+INFO:telethon.network.connection.connection:<class 'OSError'> during disconnect: [WinError 121] The semaphore timeout period has expired
+INFO:telethon.network.mtprotosender:Connecting to 149.154.167.51:443/TcpFull...
+INFO:telethon.network.mtprotosender:Connection to 149.154.167.51:443/TcpFull complete!

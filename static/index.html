@@ -385,7 +385,7 @@
             margin: 8px 0 6px;
         }
 
-        .bar > i {
+        .bar>i {
             display: block;
             height: 100%;
             width: 0;
@@ -446,7 +446,7 @@
             line-height: 1.45;
         }
 
-        details.card > summary {
+        details.card>summary {
             list-style: none;
             cursor: pointer;
             font-weight: 700;
@@ -456,11 +456,11 @@
             justify-content: space-between;
         }
 
-        details.card > summary::-webkit-details-marker {
+        details.card>summary::-webkit-details-marker {
             display: none;
         }
 
-        details.card[open] > summary {
+        details.card[open]>summary {
             margin-bottom: 12px;
         }
 
@@ -673,6 +673,23 @@
             vertical-align: middle;
         }
 
+        /* ---- connection-lost banner ---- */
+        #conn-banner {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 2100;
+            background: var(--red);
+            color: #fff;
+            text-align: center;
+            padding: 10px 14px;
+            font-size: 13px;
+            font-weight: 600;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, .2);
+        }
+
         .spin.dark {
             border-color: rgba(34, 158, 217, .3);
             border-top-color: var(--brand);
@@ -687,6 +704,7 @@
 </head>
 
 <body>
+    <div id="conn-banner">⚠️ Connection lost — the server appears to be stopped. Reconnecting…</div>
     <div id="toast">Notification</div>
 
     <div class="app">
@@ -711,7 +729,8 @@
         </div>
 
         <!-- not-connected banner -->
-        <div id="auth-warn" class="card" style="display:none;border-color:rgba(232,137,12,.4);background:var(--amber-bg);">
+        <div id="auth-warn" class="card"
+            style="display:none;border-color:rgba(232,137,12,.4);background:var(--amber-bg);">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
                 <div style="font-size:13.5px;font-weight:600;color:var(--amber);">🔑 Not connected to Telegram</div>
                 <button class="btn btn-primary btn-sm" onclick="openTgLogin()">Connect</button>
@@ -719,20 +738,32 @@
         </div>
 
         <!-- target group -->
-        <div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 16px;">
+        <div class="card"
+            style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 16px;">
             <div style="min-width:0;">
                 <div class="muted">Target group</div>
-                <div id="target-group" style="font-weight:600;font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">not set</div>
+                <div id="target-group"
+                    style="font-weight:600;font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                    not set</div>
             </div>
-            <button class="btn btn-ghost btn-sm" onclick="openGroupModal()">⚙️ Setup</button>
+            <button class="btn btn-ghost btn-sm" onclick="openGroupModal()">⚙️ Group Select</button>
         </div>
 
         <div id="tg-account" class="muted" style="display:none;margin:-6px 4px 12px;color:var(--green);"></div>
 
         <div class="stats">
-            <div class="tile"><div class="v" id="total-count" style="color:var(--brand);">0</div><div class="l">Uploaded</div></div>
-            <div class="tile"><div class="v" id="queue-count" style="color:var(--amber);">0</div><div class="l">In queue</div></div>
-            <div class="tile"><div class="v" id="active-count" style="color:var(--green);">0</div><div class="l">Active</div></div>
+            <div class="tile">
+                <div class="v" id="total-count" style="color:var(--brand);">0</div>
+                <div class="l">Uploaded</div>
+            </div>
+            <div class="tile">
+                <div class="v" id="queue-count" style="color:var(--amber);">0</div>
+                <div class="l">In queue</div>
+            </div>
+            <div class="tile">
+                <div class="v" id="active-count" style="color:var(--green);">0</div>
+                <div class="l">Active</div>
+            </div>
         </div>
 
         <button class="btn btn-primary btn-block btn-lg" onclick="openAddModal()" style="margin-bottom:14px;">
@@ -752,7 +783,8 @@
             <div id="uploads">
                 <div class="empty">💤 Nothing uploading right now.</div>
             </div>
-            <div id="failed-box" style="display:none;margin-top:12px;background:var(--red-bg);border:1px solid rgba(217,48,37,.25);border-radius:var(--radius-sm);padding:10px 12px;">
+            <div id="failed-box"
+                style="display:none;margin-top:12px;background:var(--red-bg);border:1px solid rgba(217,48,37,.25);border-radius:var(--radius-sm);padding:10px 12px;">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
                     <b style="color:var(--red);font-size:13px;">⚠️ Failed</b>
                     <button class="btn btn-danger btn-sm" onclick="retryFailed()">🔁 Retry all</button>
@@ -770,19 +802,25 @@
         <details class="card">
             <summary>⚙️ Settings <span class="caret">▸</span></summary>
             <div class="row"><span class="lbl">🚀 Turbo mode (parallel upload)</span>
-                <label class="switch"><input type="checkbox" id="turbo-toggle" onchange="saveSettings()"><span class="slider"></span></label>
+                <label class="switch"><input type="checkbox" id="turbo-toggle" onchange="saveSettings()"><span
+                        class="slider"></span></label>
             </div>
             <div class="row"><span class="lbl">📸 Compress media</span>
-                <label class="switch"><input type="checkbox" id="compress-toggle" onchange="saveSettings()"><span class="slider"></span></label>
+                <label class="switch"><input type="checkbox" id="compress-toggle" onchange="saveSettings()"><span
+                        class="slider"></span></label>
             </div>
             <div class="row"><span class="lbl">📊 Daily report</span>
-                <label class="switch"><input type="checkbox" id="report-toggle" onchange="saveSettings()"><span class="slider"></span></label>
+                <label class="switch"><input type="checkbox" id="report-toggle" onchange="saveSettings()"><span
+                        class="slider"></span></label>
             </div>
             <div class="row"><span class="lbl" style="color:var(--red);">🗑️ Auto-delete local after upload</span>
-                <label class="switch"><input type="checkbox" id="autodel-toggle" onchange="confirmAutoDelete()"><span class="slider danger"></span></label>
+                <label class="switch"><input type="checkbox" id="autodel-toggle" onchange="confirmAutoDelete()"><span
+                        class="slider danger"></span></label>
             </div>
-            <button class="btn btn-ghost btn-sm btn-block" style="margin-top:12px;" onclick="backupNow()">🗄️ Back up database now</button>
-            <button id="hc-btn" class="btn btn-ghost btn-sm btn-block" style="margin-top:8px;" onclick="healthCheck()">🩺 Verify files (health check)</button>
+            <button class="btn btn-ghost btn-sm btn-block" style="margin-top:12px;" onclick="backupNow()">🗄️ Back up
+                database now</button>
+            <button id="hc-btn" class="btn btn-ghost btn-sm btn-block" style="margin-top:8px;"
+                onclick="healthCheck()">🩺 Verify files (health check)</button>
         </details>
 
         <!-- console -->
@@ -811,7 +849,8 @@
                 <p class="muted" style="margin:0 0 12px;">Enter the password to continue.</p>
                 <input type="password" id="dash-pw" class="input" placeholder="Password"
                     onkeydown="if(event.key==='Enter')dashLogin()">
-                <button id="dash-btn" class="btn btn-primary btn-block" style="margin-top:12px;" onclick="dashLogin()">Unlock</button>
+                <button id="dash-btn" class="btn btn-primary btn-block" style="margin-top:12px;"
+                    onclick="dashLogin()">Unlock</button>
                 <p id="dash-err" style="color:var(--red);font-size:12px;display:none;margin-top:10px;"></p>
             </div>
         </div>
@@ -841,17 +880,21 @@
                 <div id="tg-step-phone">
                     <label class="fld">Phone number (international format)</label>
                     <input type="tel" id="tg-phone" class="input" placeholder="+8801XXXXXXXXX">
-                    <button id="btn-sendcode" class="btn btn-primary btn-block" style="margin-top:12px;" onclick="tgSendCode()">Send code</button>
+                    <button id="btn-sendcode" class="btn btn-primary btn-block" style="margin-top:12px;"
+                        onclick="tgSendCode()">Send code</button>
                 </div>
                 <div id="tg-step-code" style="display:none;">
                     <label class="fld">Enter the code Telegram sent you</label>
-                    <input type="text" id="tg-code" class="input" placeholder="1 2 3 4 5" inputmode="numeric" style="letter-spacing:5px;text-align:center;font-size:18px;font-weight:700;">
-                    <button id="btn-verify" class="btn btn-primary btn-block" style="margin-top:12px;" onclick="tgVerifyCode()">Verify</button>
+                    <input type="text" id="tg-code" class="input" placeholder="1 2 3 4 5" inputmode="numeric"
+                        style="letter-spacing:5px;text-align:center;font-size:18px;font-weight:700;">
+                    <button id="btn-verify" class="btn btn-primary btn-block" style="margin-top:12px;"
+                        onclick="tgVerifyCode()">Verify</button>
                 </div>
                 <div id="tg-step-2fa" style="display:none;">
                     <label class="fld">Two-step verification password</label>
                     <input type="password" id="tg-2fa" class="input" placeholder="Password">
-                    <button id="btn-2fa" class="btn btn-primary btn-block" style="margin-top:12px;" onclick="tgVerifyPassword()">Confirm</button>
+                    <button id="btn-2fa" class="btn btn-primary btn-block" style="margin-top:12px;"
+                        onclick="tgVerifyPassword()">Confirm</button>
                 </div>
                 <p id="tg-error" style="color:var(--red);font-size:12px;display:none;margin-top:10px;"></p>
                 <p class="muted" style="margin-top:12px;">🔒 Your login stays on this server only.</p>
@@ -869,9 +912,11 @@
             <div class="mbody">
                 <label class="fld">Create a new group</label>
                 <input type="text" id="ng-title" class="input" placeholder="Group title">
-                <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;margin-top:8px;color:var(--muted);">
+                <label
+                    style="display:flex;align-items:center;gap:8px;font-size:12.5px;margin-top:8px;color:var(--muted);">
                     <input type="checkbox" id="ng-topics" checked> Enable Topics (recommended)</label>
-                <button class="btn btn-primary btn-block" style="margin-top:10px;" onclick="createGroup()">Create group</button>
+                <button class="btn btn-primary btn-block" style="margin-top:10px;" onclick="createGroup()">Create
+                    group</button>
 
                 <label class="fld" style="margin-top:18px;">Or select an existing group</label>
                 <ul class="list" id="group-list" style="max-height:150px;overflow-y:auto;">
@@ -883,7 +928,8 @@
                     <ul class="list" id="topic-list" style="max-height:150px;overflow-y:auto;"></ul>
                     <div id="topic-create-wrap">
                         <input type="text" id="nt-title" class="input" placeholder="New topic title">
-                        <button class="btn btn-ghost btn-block" style="margin-top:8px;" onclick="createTopic()">➕ Create topic</button>
+                        <button class="btn btn-ghost btn-block" style="margin-top:8px;" onclick="createTopic()">➕ Create
+                            topic</button>
                     </div>
                 </div>
             </div>
@@ -901,7 +947,8 @@
                 <ul class="list" id="report-list">
                     <li class="muted">Loading…</li>
                 </ul>
-                <button class="btn btn-primary btn-block" style="margin-top:12px;" onclick="sendReport()">📤 Send today's report</button>
+                <button class="btn btn-primary btn-block" style="margin-top:12px;" onclick="sendReport()">📤 Send
+                    today's report</button>
             </div>
         </div>
     </div>
@@ -928,16 +975,20 @@
                     </div>
                     <div id="pane-local">
                         <label class="fld">Folder path on this machine</label>
-                        <input type="text" id="scan-path" class="input" placeholder="/storage/emulated/0/DCIM or C:\Photos">
-                        <button id="scan-btn" class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="doScan()">🔍 Scan</button>
+                        <input type="text" id="scan-path" class="input"
+                            placeholder="/storage/emulated/0/DCIM or C:\Photos">
+                        <button id="scan-btn" class="btn btn-ghost btn-block" style="margin-top:10px;"
+                            onclick="doScan()">🔍 Scan</button>
                         <div id="scan-result" class="info-box" style="display:none;margin-top:12px;"></div>
                     </div>
                     <div id="pane-upload" style="display:none;">
                         <div class="dropzone" id="drop-zone">
                             📂 Drag files here, or:
                             <div style="margin-top:10px;display:flex;gap:8px;justify-content:center;">
-                                <button class="btn btn-ghost btn-sm" onclick="document.getElementById('file-input').click()">Pick files</button>
-                                <button class="btn btn-ghost btn-sm" onclick="document.getElementById('folder-input').click()">Pick folder</button>
+                                <button class="btn btn-ghost btn-sm"
+                                    onclick="document.getElementById('file-input').click()">Pick files</button>
+                                <button class="btn btn-ghost btn-sm"
+                                    onclick="document.getElementById('folder-input').click()">Pick folder</button>
                             </div>
                             <input type="file" id="file-input" multiple style="display:none;">
                             <input type="file" id="folder-input" webkitdirectory multiple style="display:none;">
@@ -956,6 +1007,12 @@
                     </select>
                     <p class="muted" style="margin-top:6px;">A ZIP over 2GB is auto-split and re-joined on download.</p>
 
+                    <div id="zip-name-field" style="display:none; margin-top:10px;">
+                        <label class="fld">ZIP file name (optional)</label>
+                        <input type="text" id="zip-name" class="input" placeholder="">
+                        <p class="muted" style="margin-top:4px;">Leave blank to auto-name it from the folder/file and its date range.</p>
+                    </div>
+
                     <label class="fld" style="margin-top:14px;">Organize into topics by</label>
                     <select id="route-mode" class="input" onchange="renderRouting()">
                         <option value="extension" selected>File type — Images / Videos / … (recommended)</option>
@@ -971,9 +1028,11 @@
                 </div>
 
                 <div class="btn-row" style="margin-top:18px;">
-                    <button id="add-back" class="btn btn-ghost" onclick="addStep(-1)" style="display:none;">← Back</button>
+                    <button id="add-back" class="btn btn-ghost" onclick="addStep(-1)" style="display:none;">←
+                        Back</button>
                     <button id="add-next" class="btn btn-primary" onclick="addStep(1)">Next →</button>
-                    <button id="add-submit" class="btn btn-primary" onclick="submitAdd()" style="display:none;">Add to Queue</button>
+                    <button id="add-submit" class="btn btn-primary" onclick="submitAdd()" style="display:none;">Add to
+                        Queue</button>
                 </div>
             </div>
         </div>
@@ -1039,12 +1098,44 @@
                 .finally(() => btnBusy('dash-btn', false));
         }
         function startApp() { loadConfig(); refreshAccount(); connectWS(); }
+
+        // ---------- connection health ----------
+        // The WebSocket is the one persistent link to the backend, so its
+        // open/close state is the reliable signal for "is the server actually
+        // running" — a stopped terminal can't respond, but the last-loaded
+        // page keeps showing stale "running" status until this fires.
+        let wsReconnectDelay = 1000;   // exponential backoff, capped below
+        let connLostTimer = null;      // debounce: don't flash the banner on a brief blip
+        let connBannerShown = false;
+
         function connectWS() {
             const proto = location.protocol === 'https:' ? 'wss' : 'ws';
             ws = new WebSocket(`${proto}://${location.host}/ws`);
-            ws.onopen = () => document.getElementById('ws-dot').classList.add('on');
-            ws.onclose = () => { document.getElementById('ws-dot').classList.remove('on'); setTimeout(connectWS, 2000); };
+            ws.onopen = () => {
+                document.getElementById('ws-dot').classList.add('on');
+                wsReconnectDelay = 1000;          // reset backoff once healthy again
+                clearTimeout(connLostTimer);
+                hideConnBanner();
+                refreshSnapshot();                // catch up on anything missed while down
+            };
+            ws.onclose = () => {
+                document.getElementById('ws-dot').classList.remove('on');
+                clearTimeout(connLostTimer);
+                connLostTimer = setTimeout(showConnBanner, 2500);
+                const delay = wsReconnectDelay;
+                wsReconnectDelay = Math.min(wsReconnectDelay * 2, 10000);
+                setTimeout(connectWS, delay);
+            };
+            ws.onerror = () => { try { ws.close(); } catch (e) { } };
             ws.onmessage = (e) => handleEvent(JSON.parse(e.data));
+        }
+        function showConnBanner() {
+            connBannerShown = true;
+            document.getElementById('conn-banner').style.display = 'block';
+        }
+        function hideConnBanner() {
+            if (connBannerShown) { connBannerShown = false; showToast('✅ Reconnected'); }
+            document.getElementById('conn-banner').style.display = 'none';
         }
         function refreshSnapshot() { apiFetch('/api/stats').then(renderSnapshot); }
         function handleEvent(msg) {
@@ -1057,6 +1148,7 @@
             else if (msg.type === 'failed') renderFailed(d.failed || []);
             else if (msg.type === 'uploaded') { document.getElementById('total-count').innerText = d.total_uploaded; showToast(`✅ ${d.name}${d.duration_text ? ' · ' + d.duration_text : ''}`); refreshSnapshot(); }
             else if (msg.type === 'log') appendLog(d.line);
+            else if (msg.type === 'zip') handleZipEvent(d);
         }
 
         function setStatus(s) { const el = document.getElementById('status'); el.innerText = s; el.className = 'status ' + s; }
@@ -1345,20 +1437,62 @@
                 const subs = scanData ? scanData.subfolders : foldersFromPicked();
                 box.innerHTML = subs.length ? `<p class="muted" style="margin-top:8px;">A topic is auto-created per folder: ${subs.map(s => (s.name === '.' ? 'General' : s.name)).join(' · ')}</p>` : `<p class="muted" style="margin-top:8px;">Scan/pick a folder to see subfolders.</p>`;
             }
+            const sendMode = document.getElementById('send-mode').value;
+            const zipField = document.getElementById('zip-name-field');
+            if (sendMode === 'zip' || sendMode === 'both') {
+                zipField.style.display = 'block';
+                document.getElementById('zip-name').placeholder = computeZipNamePreview();
+            } else {
+                zipField.style.display = 'none';
+            }
+        }
+        function _sanitizeTagJs(s) { return (s || '').replace(/ /g, '').replace(/[^0-9A-Za-z]+/g, '_').replace(/^_+|_+$/g, ''); }
+        function _fmtDateJs(ts) {
+            const d = new Date(ts), pad = n => String(n).padStart(2, '0');
+            return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+        }
+        function computeZipNamePreview() {
+            // Mirrors the backend's _zip_label logic so the placeholder shown here
+            // matches what actually gets used when the user leaves the field blank.
+            if (addMode === 'local') {
+                if (!scanData) return 'archive';
+                const path = document.getElementById('scan-path').value.trim();
+                const base = path.split(/[\\/]/).filter(Boolean).pop() || 'archive';
+                let label = base;
+                if (scanData.date_from && scanData.date_to) {
+                    label += '_' + (scanData.date_from === scanData.date_to ? scanData.date_from : `${scanData.date_from}_to_${scanData.date_to}`);
+                }
+                return _sanitizeTagJs(label) || 'archive';
+            }
+            if (!pickedFiles.length) return 'archive';
+            const rels = pickedFiles.map(f => f.webkitRelativePath || f.name);
+            const isFolderPick = rels.some(r => r.includes('/'));
+            if (pickedFiles.length === 1 && !isFolderPick) {
+                return _sanitizeTagJs(pickedFiles[0].name.replace(/\.[^.]+$/, '')) || 'archive';
+            }
+            const name = isFolderPick ? rels[0].split('/')[0] : 'Files';
+            const times = pickedFiles.map(f => f.lastModified);
+            const d1 = _fmtDateJs(Math.min(...times)), d2 = _fmtDateJs(Math.max(...times));
+            return _sanitizeTagJs(`${name}_${d1 === d2 ? d1 : `${d1}_to_${d2}`}`) || 'archive';
         }
         function buildRouting() {
             const mode = document.getElementById('route-mode').value, sendMode = document.getElementById('send-mode').value;
-            const zipTopic = mode === 'topic' ? (parseInt((document.getElementById('rt-topic') || {}).value) || 0) : 0;
             let r = mode === 'topic' ? { mode: 'topic', topic_id: parseInt((document.getElementById('rt-topic') || {}).value) || 0 }
                 : mode === 'extension' ? { mode: 'extension', auto_create: true } : { mode: 'folder', auto_create: true };
-            r.send_mode = sendMode; r.zip_topic_id = zipTopic; return r;
+            r.send_mode = sendMode;
+            if (sendMode === 'zip' || sendMode === 'both') {
+                const zn = (document.getElementById('zip-name') || {}).value || '';
+                if (zn.trim()) r.zip_name = zn.trim();
+            }
+            return r;
         }
         function renderSummary() {
             const routing = buildRouting();
             const src = addMode === 'local' ? (scanData ? `${scanData.total_files} files · ${fmtBytes(scanData.total_size)}` : 'local path') : `${pickedFiles.length} file(s) from device`;
             const org = { extension: 'By file type', folder: 'By folder name', topic: 'Single topic' }[routing.mode];
             const send = { individual: 'Individual files', zip: 'One ZIP', both: 'Files + ZIP' }[routing.send_mode];
-            document.getElementById('add-summary').innerHTML = `📦 <b>Source:</b> ${src}<br>🗂️ <b>Send as:</b> ${send}<br>🎯 <b>Organize:</b> ${org}`;
+            const zipNameLine = routing.zip_name ? `<br>📛 <b>ZIP name:</b> ${routing.zip_name}.zip` : '';
+            document.getElementById('add-summary').innerHTML = `📦 <b>Source:</b> ${src}<br>🗂️ <b>Send as:</b> ${send}<br>🎯 <b>Organize:</b> ${org}${zipNameLine}`;
         }
         function submitAdd() {
             const routing = buildRouting();
@@ -1368,7 +1502,7 @@
                 tgHandle('/api/queue/add', { path, routing }).then(r => {
                     let m = `➕ Queued ${r.added}` + (r.skipped ? ` (skipped ${r.skipped})` : '');
                     if (r.topics_created) m += ` · ${r.topics_created} topic(s)`;
-                    if (r.zip) m += ` · zip queued`;
+                    if (r.zip) m += ` · zipping in background`;
                     showToast(m); closeModal('add-modal');
                 }).catch(e => showToast(e.message, true)).finally(() => setAddBusy(false));
             } else uploadFromDevice(routing);
@@ -1376,24 +1510,51 @@
         function setAddBusy(b, l) { btnBusy('add-submit', b, l); }
         function showBanner(t) { document.getElementById('banner-text').innerText = t; document.getElementById('banner').style.display = 'flex'; }
         function hideBanner() { document.getElementById('banner').style.display = 'none'; }
+        function handleZipEvent(d) {
+            if (d.status === 'zipping') showBanner(`📦 Zipping ${d.name} — ${d.percentage}%`);
+            else if (d.status === 'queuing') showBanner(`📦 Queuing ${d.name}…`);
+            else if (d.status === 'done') { hideBanner(); showToast(d.queued ? `📦 ${d.name} queued` : `📦 ${d.name} skipped (duplicate)`); }
+            else if (d.status === 'error') { hideBanner(); showToast(`❌ Zip failed: ${d.error}`, true); }
+        }
 
         async function uploadFromDevice(routing) {
             if (!pickedFiles.length) { showToast('Pick files first', true); return; }
             if (routing.send_mode === 'zip' || routing.send_mode === 'both') {
+                const isBoth = routing.send_mode === 'both';
+                let serverRouting = { mode: routing.mode };
+                setAddBusy(true, 'Preparing…');
+                try {
+                    if (routing.mode === 'folder') {
+                        serverRouting.folder_map = (await tgHandle('/api/topics/ensure_folders', { group_id: currentGroupId, folders: foldersFromPicked().map(s => s.name) })).mapping || {};
+                        serverRouting.default_topic = serverRouting.folder_map['.'];
+                    } else if (routing.mode === 'extension') {
+                        const cats = [...new Set(pickedFiles.map(f => fileTypeOf(f.name)))];
+                        if (!cats.includes('compressed')) cats.push('compressed'); // so the zip itself has a Compressed topic to land in
+                        const mapping = (await tgHandle('/api/topics/ensure_folders', { group_id: currentGroupId, folders: cats.map(c => LABEL[c]) })).mapping || {};
+                        serverRouting.ext_map = {}; cats.forEach(c => serverRouting.ext_map[c] = mapping[LABEL[c]]);
+                    } else {
+                        serverRouting.topic_id = routing.topic_id;
+                    }
+                } catch (e) { setAddBusy(false); showToast(e.message, true); return; }
+                setAddBusy(false);
                 const session = 'z' + Date.now() + Math.random().toString(36).slice(2, 8);
                 const files = pickedFiles.slice(); closeModal('add-modal');
-                showBanner(`Staging 0/${files.length} for ZIP…`);
+                showBanner(`Staging 0/${files.length}…`);
                 let done = 0;
                 for (const f of files) {
                     const fd = new FormData(); fd.append('file', f); fd.append('rel_path', f.webkitRelativePath || f.name);
                     fd.append('last_modified', f.lastModified); fd.append('session', session); fd.append('stage_only', 'true');
                     try { await fetch('/api/upload', { method: 'POST', body: fd }); } catch (e) { }
-                    done++; showBanner(`Staging ${done}/${files.length} for ZIP…`);
+                    done++; showBanner(`Staging ${done}/${files.length}…`);
                 }
-                showBanner('Zipping & queuing…');
-                try { await tgHandle('/api/zip_session', { session, topic_id: routing.zip_topic_id || 0 }); showToast('📦 Folder zipped & queued'); }
-                catch (e) { showToast(e.message, true); }
-                hideBanner(); return;
+                showBanner(isBoth ? '📦 Zipping + queuing individual files…' : '📦 Zipping…');
+                try {
+                    await tgHandle('/api/zip_session', { session, send_mode: routing.send_mode, routing: serverRouting, zip_name: routing.zip_name || '' });
+                    // Zipping continues in the background — 'zip' WS events drive the
+                    // banner from here (see handleZipEvent) so a large folder never
+                    // leaves the UI stuck on a stale message.
+                } catch (e) { showToast(e.message, true); hideBanner(); }
+                return;
             }
             setAddBusy(true, 'Preparing…');
             let folderMap = {}, typeMap = {};

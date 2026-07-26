@@ -15,7 +15,9 @@ router = APIRouter(tags=["uploads"])
 
 class ZipSession(BaseModel):
     session: str
-    topic_id: int = 0
+    send_mode: str = "zip"  # "zip" | "both"
+    routing: dict = {}
+    zip_name: str = ""  # optional user-typed override for the auto-generated name
 
 
 def _session_dir(session):
@@ -42,31 +44,36 @@ async def queue_add(item: QueueAddItem):
         gid = config.active_group_id()
         result = {"added": 0, "skipped": 0}
 
+        # Auto-create folder/extension topics whenever the routing needs them —
+        # not just for "individual"/"both": a pure "zip" also has to route
+        # into the matching folder/Compressed topic, so the map must exist.
+        if routing.get("mode") == "folder" and routing.get("auto_create"):
+            scan = await asyncio.to_thread(svc.scan_path, item.path)
+            names = [s["name"] for s in scan["subfolders"]]
+            res = await svc.create_topics_for_folders(gid, names)
+            routing["folder_map"] = res["mapping"]
+            routing.setdefault("default_topic", res["mapping"].get("."))
+            info = {"topics_created": res["created"], "capped": res["capped"],
+                    "max_topics": res["max_topics"]}
+        elif routing.get("mode") == "extension" and routing.get("auto_create"):
+            scan = await asyncio.to_thread(svc.scan_path, item.path)
+            present = {config.category_for("x" + e["ext"]) for e in scan["extensions"]}
+            labels = config.CATEGORY_LABELS
+            wanted = [labels[t] for t in present]
+            res = await svc.create_topics_for_folders(gid, wanted)
+            routing["ext_map"] = {t: res["mapping"].get(labels[t]) for t in present}
+            info = {"topics_created": res["created"]}
+
         if send_mode in ("individual", "both"):
-            if routing.get("mode") == "folder" and routing.get("auto_create"):
-                scan = await asyncio.to_thread(svc.scan_path, item.path)
-                names = [s["name"] for s in scan["subfolders"]]
-                res = await svc.create_topics_for_folders(gid, names)
-                routing["folder_map"] = res["mapping"]
-                routing.setdefault("default_topic", res["mapping"].get("."))
-                info = {"topics_created": res["created"], "capped": res["capped"],
-                        "max_topics": res["max_topics"]}
-            elif routing.get("mode") == "extension" and routing.get("auto_create"):
-                scan = await asyncio.to_thread(svc.scan_path, item.path)
-                present = {config.category_for("x" + e["ext"]) for e in scan["extensions"]}
-                labels = config.CATEGORY_LABELS
-                wanted = [labels[t] for t in present]
-                res = await svc.create_topics_for_folders(gid, wanted)
-                routing["ext_map"] = {t: res["mapping"].get(labels[t]) for t in present}
-                info = {"topics_created": res["created"]}
             # enqueue_path walks + hashes every file — keep it off the event loop.
             result = await asyncio.to_thread(svc.enqueue_path, item.path, routing)
 
         if send_mode in ("zip", "both"):
-            zip_topic = routing.get("zip_topic_id")
-            if zip_topic is None:
-                zip_topic = routing.get("topic_id") or 0
-            info["zip"] = await svc.zip_and_enqueue(item.path, int(zip_topic))
+            # Route the zip the same way any file of its folder/type would be
+            # routed, instead of hardcoding it to the General/main-chat topic.
+            zip_topic = await svc.resolve_zip_topic(routing, gid, src_dir=item.path)
+            info["zip"] = await svc.zip_and_enqueue(
+                item.path, zip_topic, custom_name=routing.get("zip_name"))
 
         result.update(info)
         return result
@@ -135,13 +142,16 @@ async def upload(
 
 @router.post("/zip_session")
 async def zip_session(item: ZipSession):
-    """Zip a fully-staged browser session dir and queue the .zip (chunked if
-    huge). Removes the staged originals afterwards."""
+    """Finalize a fully-staged browser session dir per send_mode:
+    'zip' -> zip + queue it, then remove the staged originals.
+    'both' -> zip snapshot + queue every original individually (routed by
+    item.routing), each half self-deleting its own staged copy after send."""
     require_auth()
     d = _session_dir(item.session)
     if not os.path.isdir(d):
         raise HTTPException(status_code=400, detail="Upload session not found.")
     try:
-        return await get_service().zip_and_enqueue(d, int(item.topic_id), delete_src=True)
+        return await get_service().finalize_session(
+            d, item.send_mode, item.routing, custom_name=item.zip_name)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

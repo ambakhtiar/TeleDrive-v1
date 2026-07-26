@@ -5,11 +5,18 @@ import time
 import hashlib
 import asyncio
 
-from telethon import errors
+from telethon import errors, helpers as tl_helpers, utils as tl_utils
+from telethon.tl import functions, types as tl_types
+from telethon.tl.custom import InputSizedFile
 
 from app import config
 from app.db import generate_file_hash, file_sha256
 from app.services.helpers import format_metadata, fmt_duration
+
+# Telegram file-part handles (an uploaded-but-not-yet-sent file id) are only
+# valid for under a day; stay comfortably under that before treating a
+# persisted upload session as stale and starting a fresh one.
+UPLOAD_SESSION_MAX_AGE = 20 * 3600
 
 
 class UploadMixin:
@@ -76,6 +83,11 @@ class UploadMixin:
                     finally:
                         self.active_uploads -= 1
                         self._active.pop(h, None)
+                        # _finalize_success already emitted 'uploaded'/'queue' before
+                        # this decrement (it runs a post-upload delay first), so the
+                        # frontend's refreshSnapshot() read a stale active_uploads.
+                        # Emit again now so the count corrects without a hard refresh.
+                        self.emit("queue", {"queued_files": len(self.queued_hashes)})
                 finally:
                     self.queue.task_done()
             except asyncio.CancelledError:
@@ -85,7 +97,10 @@ class UploadMixin:
                 await asyncio.sleep(3)
 
     def _delete_staged(self, item):
-        """Delete a browser-upload staged copy (safe no-op for local files)."""
+        """Delete a browser-upload staged copy (safe no-op for local files),
+        and drop any resumable raw-part progress — cancelling an upload means
+        abandoning it, not keeping a partial Telegram-side file handle around."""
+        self.db.clear_upload_session(item.get("hash", ""))
         path = item.get("path", "")
         try:
             if os.path.abspath(path).startswith(os.path.abspath(config.UPLOAD_STAGING_DIR)):
@@ -127,6 +142,9 @@ class UploadMixin:
     async def _finalize_success(self, name, item, group_id, msg_id, msg_link,
                                 elapsed, size, sha, auto_delete,
                                 chunked=0, total_parts=1):
+        # Done — no longer need the raw-part resume bookkeeping for this file
+        # (a no-op delete for chunked uploads, which never touch this table).
+        self.db.clear_upload_session(item["hash"])
         self.db.mark_uploaded(
             item["hash"], item["name"], item["path"], item["topic_id"], msg_link,
             message_id=msg_id, size=size, sha256=sha, chat_id=group_id,
@@ -155,6 +173,83 @@ class UploadMixin:
         self.db.queue_remove(item["hash"])
         self.emit("queue", {"queued_files": len(self.queued_hashes)})
         await asyncio.sleep(config.DELAY_BETWEEN_UPLOADS)
+
+    async def _upload_resumable(self, item, progress_callback):
+        """Upload item['path'] via Telegram's raw upload-part API — the same
+        protocol Telethon's send_file() uses internally (SaveFilePartRequest /
+        SaveBigFilePartRequest into a file_id, finalized as an InputFile), but
+        bypassed here because that convenience wrapper has no resume support.
+        Each part's completion is persisted, so a pause/resume — or a server
+        restart — continues from the next missing part instead of re-uploading
+        the whole file from byte 0. Delivered as ONE Telegram message once
+        complete, exactly like a normal send_file() call."""
+        h = item["hash"]
+        path = item["path"]
+        file_size = item["stats"].st_size
+        file_name = item["name"]
+
+        sess = self.db.get_upload_session(h, max_age=UPLOAD_SESSION_MAX_AGE)
+        if sess and sess["file_size"] == file_size:
+            file_id = sess["file_id"]
+            part_size = sess["part_size"]
+            total_parts = sess["total_parts"]
+            is_big = sess["is_big"]
+        else:
+            part_size = tl_utils.get_appropriated_part_size(file_size) * 1024
+            total_parts = max(1, math.ceil(file_size / part_size))
+            is_big = file_size > 10 * 1024 * 1024
+            file_id = tl_helpers.generate_random_long()
+            self.db.clear_upload_session(h)
+            self.db.set_upload_session(h, file_id, part_size, total_parts, is_big, file_size)
+
+        done = self.db.done_upload_parts(h)
+        sent = sum(min(part_size, file_size - i * part_size) for i in done)
+        if progress_callback:
+            await progress_callback(sent, file_size)
+
+        with open(path, "rb") as f:
+            for part_index in range(total_parts):
+                if part_index in done:
+                    continue
+                f.seek(part_index * part_size)
+                part = f.read(part_size)
+                last_error = "unknown"
+                for attempt in range(1, config.UPLOAD_RETRY_LIMIT + 1):
+                    try:
+                        if is_big:
+                            req = functions.upload.SaveBigFilePartRequest(
+                                file_id, part_index, total_parts, part)
+                        else:
+                            req = functions.upload.SaveFilePartRequest(
+                                file_id, part_index, part)
+                        ok = await self.client(req)
+                        if not ok:
+                            raise RuntimeError("Telegram rejected this part")
+                        break
+                    except errors.FloodWaitError as e:
+                        self.log(f"⏳ FloodWait {e.seconds}s (part {part_index + 1}/{total_parts})")
+                        await asyncio.sleep(e.seconds)
+                    except Exception as e:
+                        last_error = str(e)
+                        await asyncio.sleep(3)
+                else:
+                    raise RuntimeError(
+                        f"Upload part {part_index + 1}/{total_parts} failed: {last_error}")
+                self.db.add_upload_part(h, part_index)
+                sent += len(part)
+                if progress_callback:
+                    await progress_callback(sent, file_size)
+
+        if is_big:
+            return tl_types.InputFileBig(file_id, total_parts, file_name)
+        md5 = hashlib.md5()
+        with open(path, "rb") as f:
+            while True:
+                block = f.read(1024 * 1024)
+                if not block:
+                    break
+                md5.update(block)
+        return InputSizedFile(file_id, total_parts, file_name, md5=md5, size=file_size)
 
     async def _do_upload(self, name, item, cfg):
         group_id = config.active_group_id()
@@ -192,13 +287,13 @@ class UploadMixin:
             try:
                 self.log(f"🚀 [{name}] Uploading: {item['name']}")
                 start_time[0] = time.time()
+                input_file = await self._upload_resumable(item, progress_callback)
                 msg = await self.client.send_file(
                     group_id,
-                    item["path"],
+                    input_file,
                     caption=caption,
                     reply_to=item["topic_id"],
                     force_document=not compress_media,
-                    progress_callback=progress_callback,
                 )
                 elapsed = time.time() - start_time[0]
                 group_str = str(group_id).replace("-100", "")
