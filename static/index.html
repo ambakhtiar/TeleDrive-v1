@@ -9,42 +9,9 @@
     <meta name="theme-color" content="#229ED9">
     <link rel="icon"
         href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%232AABEE'/%3E%3Cstop offset='1' stop-color='%23229ED9'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' rx='26' fill='url(%23g)'/%3E%3Cpath fill='%23fff' d='M75 30 L27 51 c-2 .9 -1.8 3.8 .3 4.4 L41 59 L46 73 c.7 2 3.4 2.1 4.3 .3 L57 63 L69 72 c1.6 1.2 3.9 .3 4.3-1.7 L79 33 c.5-2.3 -1.8-4 -3.9-3z'/%3E%3Cpath fill='%23b9def2' d='M43 59 L64 41 L50 62z'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="/static/theme.css">
+    <script>(function () { var s = localStorage.getItem('theme'); var t = s || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); document.documentElement.setAttribute('data-theme', t); })();</script>
     <style>
-        :root {
-            --brand: #229ED9;
-            --brand-2: #2AABEE;
-            --bg: #f4f6f8;
-            --surface: #ffffff;
-            --surface-2: #f7f9fb;
-            --border: #e6e9ee;
-            --text: #1a1f24;
-            --muted: #71787f;
-            --green: #1e8e3e;
-            --green-bg: #e6f4ea;
-            --red: #d93025;
-            --red-bg: #fce8e6;
-            --amber: #e8890c;
-            --amber-bg: #fff3cd;
-            --radius: 14px;
-            --radius-sm: 9px;
-            --shadow: 0 1px 3px rgba(16, 24, 40, .06), 0 8px 24px rgba(16, 24, 40, .06);
-        }
-
-        @media (prefers-color-scheme: dark) {
-            :root {
-                --bg: #0f1418;
-                --surface: #171d23;
-                --surface-2: #1e262d;
-                --border: #2a333b;
-                --text: #e7ecf0;
-                --muted: #97a1ab;
-                --green-bg: #14351f;
-                --red-bg: #3a1b18;
-                --amber-bg: #3a3016;
-                --shadow: 0 1px 3px rgba(0, 0, 0, .4), 0 8px 24px rgba(0, 0, 0, .3);
-            }
-        }
-
         * {
             box-sizing: border-box;
         }
@@ -62,6 +29,33 @@
             max-width: 640px;
             margin: 0 auto;
             padding: 16px 16px 60px;
+        }
+
+        /* ---- responsive tiers: mobile (base) / tablet 640-1023 / desktop 1024+ ---- */
+        @media (min-width: 640px) {
+            .app {
+                max-width: 760px;
+                padding: 20px 20px 60px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .app {
+                max-width: 920px;
+                padding: 28px 28px 70px;
+            }
+
+            .tile {
+                padding: 16px;
+            }
+
+            .tile .v {
+                font-size: 24px;
+            }
+
+            #uploads {
+                max-height: 480px;
+            }
         }
 
         /* ---- top bar ---- */
@@ -252,6 +246,26 @@
             flex: 1;
         }
 
+        /* ---- layout utilities (replace repeated inline styles) ---- */
+        .flex-between {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .mt-8 {
+            margin-top: 8px;
+        }
+
+        .mt-10 {
+            margin-top: 10px;
+        }
+
+        .mt-12 {
+            margin-top: 12px;
+        }
+
         /* ---- inputs ---- */
         .input,
         select.input {
@@ -434,8 +448,8 @@
 
         /* ---- console ---- */
         .console {
-            background: #0d1117;
-            color: #d6dee6;
+            background: var(--console-bg);
+            color: var(--console-text);
             font-family: 'Cascadia Code', 'Courier New', monospace;
             font-size: 11px;
             padding: 12px;
@@ -562,6 +576,20 @@
             font-size: 16px;
         }
 
+        /* ---- mobile: modals become full-screen bottom sheets ---- */
+        @media (max-width: 639px) {
+            .overlay {
+                padding: 0;
+                align-items: flex-end;
+            }
+
+            .modal {
+                max-width: 100% !important;
+                border-radius: 18px 18px 0 0;
+                max-height: 92vh;
+            }
+        }
+
         .modal .mbody {
             padding: 18px;
             overflow-y: auto;
@@ -649,7 +677,7 @@
             left: 50%;
             bottom: -120px;
             transform: translateX(-50%);
-            background: #202b36;
+            background: var(--toast-bg);
             color: #fff;
             padding: 12px 22px;
             border-radius: 999px;
@@ -725,13 +753,13 @@
             <span id="ws-dot" class="ws-dot" title="Live connection"></span>
             <span class="spacer"></span>
             <span id="status" class="status running">…</span>
+            <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode">🌙</button>
             <button id="logout-btn" class="btn btn-ghost btn-sm" onclick="tgLogout()" style="display:none;">🚪</button>
         </div>
 
         <!-- not-connected banner -->
-        <div id="auth-warn" class="card"
-            style="display:none;border-color:rgba(232,137,12,.4);background:var(--amber-bg);">
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+        <div id="auth-warn" class="card" style="display:none;border-color:rgba(232,137,12,.4);background:var(--amber-bg);">
+            <div class="flex-between">
                 <div style="font-size:13.5px;font-weight:600;color:var(--amber);">🔑 Not connected to Telegram</div>
                 <button class="btn btn-primary btn-sm" onclick="openTgLogin()">Connect</button>
             </div>
@@ -817,10 +845,10 @@
                 <label class="switch"><input type="checkbox" id="autodel-toggle" onchange="confirmAutoDelete()"><span
                         class="slider danger"></span></label>
             </div>
-            <button class="btn btn-ghost btn-sm btn-block" style="margin-top:12px;" onclick="backupNow()">🗄️ Back up
-                database now</button>
-            <button id="hc-btn" class="btn btn-ghost btn-sm btn-block" style="margin-top:8px;"
-                onclick="healthCheck()">🩺 Verify files (health check)</button>
+            <div class="btn-row mt-12">
+                <button class="btn btn-ghost btn-sm" onclick="backupNow()">🗄️ Back up database now</button>
+                <button id="hc-btn" class="btn btn-ghost btn-sm" onclick="healthCheck()">🩺 Verify files (health check)</button>
+            </div>
         </details>
 
         <!-- console -->
@@ -849,8 +877,7 @@
                 <p class="muted" style="margin:0 0 12px;">Enter the password to continue.</p>
                 <input type="password" id="dash-pw" class="input" placeholder="Password"
                     onkeydown="if(event.key==='Enter')dashLogin()">
-                <button id="dash-btn" class="btn btn-primary btn-block" style="margin-top:12px;"
-                    onclick="dashLogin()">Unlock</button>
+                <button id="dash-btn" class="btn btn-primary btn-block mt-12" onclick="dashLogin()">Unlock</button>
                 <p id="dash-err" style="color:var(--red);font-size:12px;display:none;margin-top:10px;"></p>
             </div>
         </div>
@@ -878,26 +905,29 @@
             </div>
             <div class="mbody">
                 <div id="tg-step-phone">
-                    <label class="fld">Phone number (international format)</label>
-                    <input type="tel" id="tg-phone" class="input" placeholder="+8801XXXXXXXXX">
-                    <button id="btn-sendcode" class="btn btn-primary btn-block" style="margin-top:12px;"
-                        onclick="tgSendCode()">Send code</button>
+                    <label class="fld">Country</label>
+                    <select id="tg-country" class="input" onchange="onCountryChange()">
+                        <option value="">Select country...</option>
+                    </select>
+                    <label class="fld">Phone number</label>
+                    <div style="display:flex;gap:8px;">
+                        <input type="text" id="tg-country-code" class="input" placeholder="+880" inputmode="tel" style="flex:0 0 70px;">
+                        <input type="tel" id="tg-phone" class="input" placeholder="1XXXXXXXXX" style="flex:1;" onkeydown="if(event.key==='Enter')tgSendCode()">
+                    </div>
+                    <button id="btn-sendcode" class="btn btn-primary btn-block mt-12" onclick="tgSendCode()">Send code</button>
                 </div>
                 <div id="tg-step-code" style="display:none;">
                     <label class="fld">Enter the code Telegram sent you</label>
-                    <input type="text" id="tg-code" class="input" placeholder="1 2 3 4 5" inputmode="numeric"
-                        style="letter-spacing:5px;text-align:center;font-size:18px;font-weight:700;">
-                    <button id="btn-verify" class="btn btn-primary btn-block" style="margin-top:12px;"
-                        onclick="tgVerifyCode()">Verify</button>
+                    <input type="text" id="tg-code" class="input" placeholder="1 2 3 4 5" inputmode="numeric" style="letter-spacing:5px;text-align:center;font-size:18px;font-weight:700;" onkeydown="if(event.key==='Enter')tgVerifyCode()">
+                    <button id="btn-verify" class="btn btn-primary btn-block mt-12" onclick="tgVerifyCode()">Verify</button>
                 </div>
                 <div id="tg-step-2fa" style="display:none;">
                     <label class="fld">Two-step verification password</label>
-                    <input type="password" id="tg-2fa" class="input" placeholder="Password">
-                    <button id="btn-2fa" class="btn btn-primary btn-block" style="margin-top:12px;"
-                        onclick="tgVerifyPassword()">Confirm</button>
+                    <input type="password" id="tg-2fa" class="input" placeholder="Password" onkeydown="if(event.key==='Enter')tgVerifyPassword()">
+                    <button id="btn-2fa" class="btn btn-primary btn-block mt-12" onclick="tgVerifyPassword()">Confirm</button>
                 </div>
                 <p id="tg-error" style="color:var(--red);font-size:12px;display:none;margin-top:10px;"></p>
-                <p class="muted" style="margin-top:12px;">🔒 Your login stays on this server only.</p>
+                <p class="muted mt-12">🔒 Your login stays on this server only.</p>
             </div>
         </div>
     </div>
@@ -915,8 +945,7 @@
                 <label
                     style="display:flex;align-items:center;gap:8px;font-size:12.5px;margin-top:8px;color:var(--muted);">
                     <input type="checkbox" id="ng-topics" checked> Enable Topics (recommended)</label>
-                <button class="btn btn-primary btn-block" style="margin-top:10px;" onclick="createGroup()">Create
-                    group</button>
+                <button class="btn btn-primary btn-block mt-10" onclick="createGroup()">Create group</button>
 
                 <label class="fld" style="margin-top:18px;">Or select an existing group</label>
                 <ul class="list" id="group-list" style="max-height:150px;overflow-y:auto;">
@@ -928,8 +957,7 @@
                     <ul class="list" id="topic-list" style="max-height:150px;overflow-y:auto;"></ul>
                     <div id="topic-create-wrap">
                         <input type="text" id="nt-title" class="input" placeholder="New topic title">
-                        <button class="btn btn-ghost btn-block" style="margin-top:8px;" onclick="createTopic()">➕ Create
-                            topic</button>
+                        <button class="btn btn-ghost btn-block mt-8" onclick="createTopic()">➕ Create topic</button>
                     </div>
                 </div>
             </div>
@@ -947,8 +975,7 @@
                 <ul class="list" id="report-list">
                     <li class="muted">Loading…</li>
                 </ul>
-                <button class="btn btn-primary btn-block" style="margin-top:12px;" onclick="sendReport()">📤 Send
-                    today's report</button>
+                <button class="btn btn-primary btn-block mt-12" onclick="sendReport()">📤 Send today's report</button>
             </div>
         </div>
     </div>
@@ -975,10 +1002,8 @@
                     </div>
                     <div id="pane-local">
                         <label class="fld">Folder path on this machine</label>
-                        <input type="text" id="scan-path" class="input"
-                            placeholder="/storage/emulated/0/DCIM or C:\Photos">
-                        <button id="scan-btn" class="btn btn-ghost btn-block" style="margin-top:10px;"
-                            onclick="doScan()">🔍 Scan</button>
+                        <input type="text" id="scan-path" class="input" placeholder="/storage/emulated/0/DCIM or C:\Photos">
+                        <button id="scan-btn" class="btn btn-ghost btn-block mt-10" onclick="doScan()">🔍 Scan</button>
                         <div id="scan-result" class="info-box" style="display:none;margin-top:12px;"></div>
                     </div>
                     <div id="pane-upload" style="display:none;">
@@ -1039,6 +1064,11 @@
     </div>
 
     <script>
+        // Country codes list: {name, code}
+        const COUNTRIES = [
+            {name: 'Afghanistan', code: '+93'}, {name: 'Albania', code: '+355'}, {name: 'Algeria', code: '+213'}, {name: 'Andorra', code: '+376'}, {name: 'Angola', code: '+244'}, {name: 'Argentina', code: '+54'}, {name: 'Australia', code: '+61'}, {name: 'Austria', code: '+43'}, {name: 'Azerbaijan', code: '+994'}, {name: 'Bahamas', code: '+1242'}, {name: 'Bahrain', code: '+973'}, {name: 'Bangladesh', code: '+880'}, {name: 'Barbados', code: '+1246'}, {name: 'Belarus', code: '+375'}, {name: 'Belgium', code: '+32'}, {name: 'Belize', code: '+501'}, {name: 'Benin', code: '+229'}, {name: 'Bhutan', code: '+975'}, {name: 'Bolivia', code: '+591'}, {name: 'Bosnia & Herzegovina', code: '+387'}, {name: 'Botswana', code: '+267'}, {name: 'Brazil', code: '+55'}, {name: 'Brunei', code: '+673'}, {name: 'Bulgaria', code: '+359'}, {name: 'Burkina Faso', code: '+226'}, {name: 'Burundi', code: '+257'}, {name: 'Cambodia', code: '+855'}, {name: 'Cameroon', code: '+237'}, {name: 'Canada', code: '+1'}, {name: 'Cape Verde', code: '+238'}, {name: 'Central African Republic', code: '+236'}, {name: 'Chad', code: '+235'}, {name: 'Chile', code: '+56'}, {name: 'China', code: '+86'}, {name: 'Colombia', code: '+57'}, {name: 'Comoros', code: '+269'}, {name: 'Congo', code: '+242'}, {name: 'Costa Rica', code: '+506'}, {name: 'Croatia', code: '+385'}, {name: 'Cuba', code: '+53'}, {name: 'Cyprus', code: '+357'}, {name: 'Czech Republic', code: '+420'}, {name: 'Denmark', code: '+45'}, {name: 'Djibouti', code: '+253'}, {name: 'Dominican Republic', code: '+1809'}, {name: 'Ecuador', code: '+593'}, {name: 'Egypt', code: '+20'}, {name: 'El Salvador', code: '+503'}, {name: 'Equatorial Guinea', code: '+240'}, {name: 'Eritrea', code: '+291'}, {name: 'Estonia', code: '+372'}, {name: 'Ethiopia', code: '+251'}, {name: 'Fiji', code: '+679'}, {name: 'Finland', code: '+358'}, {name: 'France', code: '+33'}, {name: 'Gabon', code: '+241'}, {name: 'Gambia', code: '+220'}, {name: 'Georgia', code: '+995'}, {name: 'Germany', code: '+49'}, {name: 'Ghana', code: '+233'}, {name: 'Gibraltar', code: '+350'}, {name: 'Greece', code: '+30'}, {name: 'Grenada', code: '+1473'}, {name: 'Guatemala', code: '+502'}, {name: 'Guinea', code: '+224'}, {name: 'Guinea-Bissau', code: '+245'}, {name: 'Guyana', code: '+592'}, {name: 'Haiti', code: '+509'}, {name: 'Honduras', code: '+504'}, {name: 'Hong Kong', code: '+852'}, {name: 'Hungary', code: '+36'}, {name: 'Iceland', code: '+354'}, {name: 'India', code: '+91'}, {name: 'Indonesia', code: '+62'}, {name: 'Iran', code: '+98'}, {name: 'Iraq', code: '+964'}, {name: 'Ireland', code: '+353'}, {name: 'Isle of Man', code: '+44'}, {name: 'Israel', code: '+972'}, {name: 'Italy', code: '+39'}, {name: 'Ivory Coast', code: '+225'}, {name: 'Jamaica', code: '+1876'}, {name: 'Japan', code: '+81'}, {name: 'Jordan', code: '+962'}, {name: 'Kazakhstan', code: '+7'}, {name: 'Kenya', code: '+254'}, {name: 'Kiribati', code: '+686'}, {name: 'Kuwait', code: '+965'}, {name: 'Kyrgyzstan', code: '+996'}, {name: 'Laos', code: '+856'}, {name: 'Latvia', code: '+371'}, {name: 'Lebanon', code: '+961'}, {name: 'Lesotho', code: '+266'}, {name: 'Liberia', code: '+231'}, {name: 'Libya', code: '+218'}, {name: 'Liechtenstein', code: '+423'}, {name: 'Lithuania', code: '+370'}, {name: 'Luxembourg', code: '+352'}, {name: 'Macao', code: '+853'}, {name: 'Madagascar', code: '+261'}, {name: 'Malawi', code: '+265'}, {name: 'Malaysia', code: '+60'}, {name: 'Maldives', code: '+960'}, {name: 'Mali', code: '+223'}, {name: 'Malta', code: '+356'}, {name: 'Marshall Islands', code: '+692'}, {name: 'Mauritania', code: '+222'}, {name: 'Mauritius', code: '+230'}, {name: 'Mexico', code: '+52'}, {name: 'Micronesia', code: '+691'}, {name: 'Moldova', code: '+373'}, {name: 'Monaco', code: '+377'}, {name: 'Mongolia', code: '+976'}, {name: 'Montenegro', code: '+382'}, {name: 'Morocco', code: '+212'}, {name: 'Mozambique', code: '+258'}, {name: 'Myanmar', code: '+95'}, {name: 'Namibia', code: '+264'}, {name: 'Nauru', code: '+674'}, {name: 'Nepal', code: '+977'}, {name: 'Netherlands', code: '+31'}, {name: 'New Zealand', code: '+64'}, {name: 'Nicaragua', code: '+505'}, {name: 'Niger', code: '+227'}, {name: 'Nigeria', code: '+234'}, {name: 'North Korea', code: '+850'}, {name: 'Norway', code: '+47'}, {name: 'Oman', code: '+968'}, {name: 'Pakistan', code: '+92'}, {name: 'Palau', code: '+680'}, {name: 'Palestine', code: '+970'}, {name: 'Panama', code: '+507'}, {name: 'Papua New Guinea', code: '+675'}, {name: 'Paraguay', code: '+595'}, {name: 'Peru', code: '+51'}, {name: 'Philippines', code: '+63'}, {name: 'Poland', code: '+48'}, {name: 'Portugal', code: '+351'}, {name: 'Puerto Rico', code: '+1787'}, {name: 'Qatar', code: '+974'}, {name: 'Romania', code: '+40'}, {name: 'Russia', code: '+7'}, {name: 'Rwanda', code: '+250'}, {name: 'Saint Kitts and Nevis', code: '+1869'}, {name: 'Saint Lucia', code: '+1758'}, {name: 'Saint Vincent and the Grenadines', code: '+1784'}, {name: 'Samoa', code: '+685'}, {name: 'San Marino', code: '+378'}, {name: 'Sao Tome and Principe', code: '+239'}, {name: 'Saudi Arabia', code: '+966'}, {name: 'Senegal', code: '+221'}, {name: 'Serbia', code: '+381'}, {name: 'Seychelles', code: '+248'}, {name: 'Sierra Leone', code: '+232'}, {name: 'Singapore', code: '+65'}, {name: 'Slovakia', code: '+421'}, {name: 'Slovenia', code: '+386'}, {name: 'Solomon Islands', code: '+677'}, {name: 'Somalia', code: '+252'}, {name: 'South Africa', code: '+27'}, {name: 'South Korea', code: '+82'}, {name: 'South Sudan', code: '+211'}, {name: 'Spain', code: '+34'}, {name: 'Sri Lanka', code: '+94'}, {name: 'Sudan', code: '+249'}, {name: 'Suriname', code: '+597'}, {name: 'Sweden', code: '+46'}, {name: 'Switzerland', code: '+41'}, {name: 'Syria', code: '+963'}, {name: 'Taiwan', code: '+886'}, {name: 'Tajikistan', code: '+992'}, {name: 'Tanzania', code: '+255'}, {name: 'Thailand', code: '+66'}, {name: 'Timor-Leste', code: '+670'}, {name: 'Togo', code: '+228'}, {name: 'Tonga', code: '+676'}, {name: 'Trinidad and Tobago', code: '+1868'}, {name: 'Tunisia', code: '+216'}, {name: 'Turkey', code: '+90'}, {name: 'Turkmenistan', code: '+993'}, {name: 'Tuvalu', code: '+688'}, {name: 'Uganda', code: '+256'}, {name: 'Ukraine', code: '+380'}, {name: 'United Arab Emirates', code: '+971'}, {name: 'United Kingdom', code: '+44'}, {name: 'United States', code: '+1'}, {name: 'Uruguay', code: '+598'}, {name: 'Uzbekistan', code: '+998'}, {name: 'Vanuatu', code: '+678'}, {name: 'Vatican City', code: '+379'}, {name: 'Venezuela', code: '+58'}, {name: 'Vietnam', code: '+84'}, {name: 'Virgin Islands (British)', code: '+1284'}, {name: 'Virgin Islands (US)', code: '+1340'}, {name: 'Western Sahara', code: '+212'}, {name: 'Yemen', code: '+967'}, {name: 'Zambia', code: '+260'}, {name: 'Zimbabwe', code: '+263'}
+        ];
+
         let ws = null, currentGroupId = null;
 
         // ---------- utils ----------
@@ -1052,7 +1082,7 @@
         let toastTimer;
         function showToast(m, danger = false) {
             const t = document.getElementById('toast'); t.innerText = m;
-            t.style.background = danger ? 'var(--red)' : '#202b36';
+            t.style.background = danger ? 'var(--red)' : 'var(--toast-bg)';
             t.style.bottom = '24px'; clearTimeout(toastTimer);
             toastTimer = setTimeout(() => t.style.bottom = '-120px', 3800);
         }
@@ -1270,11 +1300,34 @@
         }
 
         // ---------- Telegram login ----------
-        function openTgLogin() { tgShowStep('phone'); document.getElementById('tg-error').style.display = 'none'; document.getElementById('tg-login-modal').classList.add('open'); }
+        let _countriesLoaded = false;
+        function loadCountries() {
+            if (_countriesLoaded) return; _countriesLoaded = true;
+            const sel = document.getElementById('tg-country');
+            COUNTRIES.forEach(c => { const o = document.createElement('option'); o.value = c.code; o.textContent = `${c.name} (${c.code})`; sel.appendChild(o); });
+            const saved = localStorage.getItem('tg-country-code');
+            if (saved && COUNTRIES.some(c => c.code === saved)) { sel.value = saved; onCountryChange(); }
+        }
+        function onCountryChange() {
+            const sel = document.getElementById('tg-country');
+            const code = sel.value;
+            document.getElementById('tg-country-code').value = code || '';
+            if (code) localStorage.setItem('tg-country-code', code);
+            document.getElementById('tg-phone').focus();
+        }
+        function openTgLogin() {
+            tgShowStep('phone'); document.getElementById('tg-error').style.display = 'none';
+            document.getElementById('tg-login-modal').classList.add('open');
+            loadCountries();
+        }
         function tgShowStep(s) { ['phone', 'code', '2fa'].forEach(x => document.getElementById('tg-step-' + x).style.display = (x === s ? 'block' : 'none')); }
         function tgError(m) { const e = document.getElementById('tg-error'); e.innerText = m; e.style.display = 'block'; }
         function tgSendCode() {
-            const phone = document.getElementById('tg-phone').value.trim(); if (!phone) { tgError('Enter phone number'); return; }
+            const cc = document.getElementById('tg-country-code').value.trim();
+            const num = document.getElementById('tg-phone').value.trim().replace(/^0+/, '');
+            if (!cc) { tgError('Select your country'); return; }
+            if (!num) { tgError('Enter phone number'); return; }
+            const phone = cc + num;
             btnBusy('btn-sendcode', true, 'Sending…');
             tgHandle('/api/auth/send_code', { phone }).then(() => { document.getElementById('tg-error').style.display = 'none'; tgShowStep('code'); })
                 .catch(e => tgError(e.message)).finally(() => btnBusy('btn-sendcode', false));
@@ -1580,6 +1633,7 @@
 
         boot();
     </script>
+    <script src="/static/theme.js"></script>
 </body>
 
 </html>
