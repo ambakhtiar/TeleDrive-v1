@@ -21,7 +21,7 @@ echo "[2/6] Installing git, python, termux-api, and build tools..."
 pkg install -y git python termux-api clang rust binutils make pkg-config libffi openssl
 
 echo "[3/6] Granting phone storage access (for scanning DCIM etc.)..."
-termux-setup-storage
+termux-setup-storage || true
 sleep 2
 
 echo "[4/6] Fetching source code..."
