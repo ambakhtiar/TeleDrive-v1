@@ -1,0 +1,71 @@
+# Build TeleDrive desktop launcher for Windows, macOS, and Linux on every
+# GitHub Release. Attaches the binaries to the release automatically.
+name: Build Desktop Launcher
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            artifact_name: TeleDrive-Windows.exe
+            spec_extras: ""
+          - os: macos-latest
+            artifact_name: TeleDrive-macOS
+            spec_extras: ""
+          - os: ubuntu-latest
+            artifact_name: TeleDrive-Linux
+            spec_extras: ""
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install system dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libffi-dev libssl-dev
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip wheel setuptools
+          pip install -r requirements.txt pyinstaller
+
+      - name: Build with PyInstaller
+        run: pyinstaller desktop/launcher.spec
+
+      - name: Prepare artifact
+        shell: bash
+        run: |
+          if [ -d "dist/TeleDrive" ]; then
+            # onedir mode — zip the folder
+            cd dist
+            zip -r "../TeleDrive-${{ runner.os }}.zip" TeleDrive/
+            cd ..
+          elif [ -f "dist/TeleDrive.exe" ]; then
+            mv dist/TeleDrive.exe "dist/${{ matrix.artifact_name }}"
+          elif [ -f "dist/TeleDrive" ]; then
+            mv dist/TeleDrive "dist/${{ matrix.artifact_name }}"
+          fi
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/${{ matrix.artifact_name }}
+            TeleDrive-${{ runner.os }}.zip
