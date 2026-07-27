@@ -133,13 +133,28 @@ a = Analysis(
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=None)
 
+# In onedir mode, EXE must be built with exclude_binaries=True and receive
+# NEITHER a.binaries NOR a.zipfiles/a.datas directly — those belong to
+# COLLECT below. Passing them to both (as this file previously did) makes
+# EXE build in onefile fashion, writing its output straight to dist/<name>
+# as a single file; COLLECT then tries to create a DIRECTORY at that exact
+# same dist/<name> path and PyInstaller's COLLECT.assemble() chokes with
+# "Resource '.../dist/TeleDrive' is not a valid file!" once it finds a
+# freshly-made empty directory where the TOC still expects the file EXE
+# just wrote. This only surfaces on macOS/Linux, where the executable name
+# has no extension and collides byte-for-byte with COLLECT's target
+# directory name — Windows silently escapes it because EXE always appends
+# ".exe", so "TeleDrive.exe" (file) never collides with "TeleDrive" (dir).
+# onedir: EXE gets none of a.binaries/a.zipfiles/a.datas — COLLECT takes
+# those. onefile: EXE bundles everything itself and there is no COLLECT.
+EXE_EXTRA_TOC = [] if MODE == "onedir" else [a.binaries, a.zipfiles, a.datas]
+
 exe = EXE(
     pyz,
     a.scripts,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
+    *EXE_EXTRA_TOC,
     [],
+    exclude_binaries=(MODE == "onedir"),
     name="TeleDrive",
     debug=False,
     bootloader_ignore_signals=False,

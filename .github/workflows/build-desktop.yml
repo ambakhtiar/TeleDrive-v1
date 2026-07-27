@@ -63,14 +63,23 @@ jobs:
       - name: Set up Python + Tk (macOS)
         if: runner.os == 'macOS'
         run: |
-          brew install python-tk
-          # Don't guess a formula alias (e.g. "python@3") — Homebrew doesn't
-          # keep one; ask what python-tk actually pulled in as its dependency
-          # and resolve THAT exact formula's interpreter.
-          PYFORMULA="$(brew list --formula | grep -E '^python@[0-9]+\.[0-9]+$' | sort -V | tail -1)"
+          # Don't take whatever "latest" Homebrew's unversioned python-tk
+          # pulls in — confirmed root cause of a prior failure here: Homebrew
+          # had already moved its default to Python 3.14, and pydantic-core
+          # (a Rust/PyO3 extension with no prebuilt wheel for that new ABI
+          # yet) failed to build from source because PyO3 0.24.1 only
+          # supports up to 3.13. Pin to an already-widely-supported minor
+          # version instead, with older fallbacks in case Homebrew ages one
+          # out before this workflow is revisited.
+          PYFORMULA=""
+          for V in 3.12 3.13 3.11; do
+            if brew install "python-tk@$V"; then
+              PYFORMULA="python@$V"
+              break
+            fi
+          done
           if [ -z "$PYFORMULA" ]; then
-            echo "::error::No python@X.Y formula found after installing python-tk"
-            brew list --formula
+            echo "::error::Could not install python-tk for any of 3.12/3.13/3.11"
             exit 1
           fi
           BASE_PY="$(brew --prefix "$PYFORMULA")/bin/python3"
