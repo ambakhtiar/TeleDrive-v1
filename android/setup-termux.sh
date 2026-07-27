@@ -47,6 +47,17 @@ echo "ANDROID_API_LEVEL=$ANDROID_API_LEVEL"
 # Allow pip to install system-wide (PEP 668 guard on newer Termux Python).
 export PIP_BREAK_SYSTEM_PACKAGES=1
 
+# Termux's `python` package tracks upstream closely and can outrun what
+# pydantic-core's Rust build tool (PyO3) supports — e.g. Termux shipping
+# Python 3.14 while PyO3 0.24.x only builds against up to 3.13, failing with
+# "the configured Python interpreter version (3.14) is newer than PyO3's
+# maximum supported version". Unlike Homebrew, Termux has no easy "install
+# an older Python" formula, so use the escape hatch PyO3's own error message
+# recommends: build against the stable limited ABI instead of the exact
+# interpreter version. Safe for pydantic-core specifically (it's built with
+# abi3 support).
+export PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1
+
 # Upgrade build tools first.
 python -m pip install --upgrade pip setuptools wheel
 
