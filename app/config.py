@@ -5,6 +5,7 @@ uploader and web layer share. Kept deliberately small so both the async
 uploader service and the FastAPI routes can import it without side effects.
 """
 import os
+import sys
 import json
 import threading
 
@@ -15,6 +16,14 @@ from dotenv import load_dotenv
 # inside app/.
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 load_dotenv(os.path.join(PROJECT_DIR, ".env"))
+
+# In a PyInstaller bundle, __file__ resolves to a temp extraction dir where
+# there is no .env.  The user's .env lives alongside the executable, so
+# load_dotenv it last (it won't overwrite already-set vars).
+if getattr(sys, 'frozen', False):
+    _exe_dir = os.path.dirname(sys.executable)
+    if _exe_dir != PROJECT_DIR:
+        load_dotenv(os.path.join(_exe_dir, ".env"))
 
 # ---- Credentials / deploy-time settings (env) ----
 API_ID = int(os.getenv("API_ID", 0) or 0)

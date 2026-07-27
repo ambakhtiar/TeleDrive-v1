@@ -7,36 +7,43 @@ Build (from repo root):
 Output in dist/TeleDrive/ (--onedir) or dist/TeleDrive.exe (--onefile).
 """
 import os
-import sys
-from pathlib import Path
+
+# PyInstaller provides SPECPATH (the directory containing this .spec file)
+# so we derive the repo root as its parent.
+ROOT = os.path.dirname(os.path.abspath(SPECPATH))
 
 # -- Mode --------------------------------------------------------------------
 # onefile  = single executable (slower startup, portable)
 # onedir   = folder with deps (faster startup, slightly less portable)
 MODE = "onedir"
 
-# -- Paths -------------------------------------------------------------------
-ROOT = Path(__file__).resolve().parent.parent
-
-# -- Collect data files ------------------------------------------------------
-# These are the files the frozen app needs at runtime.
+# -- Data files (bundled alongside the frozen app) ---------------------------
 DATAS = [
-    (str(ROOT / "main.py"), "."),
-    (str(ROOT / ".env.example"), "."),
-    (str(ROOT / "app"), "app"),
-    (str(ROOT / "static"), "static"),
+    (os.path.join(ROOT, "main.py"), "."),
+    (os.path.join(ROOT, ".env.example"), "."),
+    (os.path.join(ROOT, "app"), "app"),
+    (os.path.join(ROOT, "static"), "static"),
 ]
 
-# -- Hidden imports ----------------------------------------------------------
-# Packages that PyInstaller might not discover automatically.
+# -- Hidden imports (packages discovered dynamically or imported via string) --
 HIDDEN = [
-    # FastAPI / Starlette internals
+    # FastAPI / Starlette
     "fastapi",
+    "fastapi.responses",
+    "fastapi.staticfiles",
+    "fastapi.middleware",
+    "fastapi.middleware.cors",
     "starlette",
     "starlette.routing",
     "starlette.middleware",
     "starlette.middleware.cors",
-    # Uvicorn (imported programmatically)
+    "starlette.middleware.trustedhost",
+    "starlette.datastructures",
+    "starlette.responses",
+    "starlette.requests",
+    "starlette.background",
+    "starlette.staticfiles",
+    # Uvicorn (imported programmatically from launcher.py)
     "uvicorn",
     "uvicorn.logging",
     "uvicorn.loops",
@@ -49,21 +56,12 @@ HIDDEN = [
     "uvicorn.middleware",
     "uvicorn.middleware.wsgi",
     "uvicorn.workers",
-    # Pydantic v2 internals
+    # Pydantic v2 (Rust core)
     "pydantic",
     "pydantic_core",
     "pydantic.color",
     "pydantic.types",
     "pydantic.dataclasses",
-    "pydantic._internal",
-    "pydantic._internal._config",
-    "pydantic._internal._model_construction",
-    "pydantic._internal._generate_schema",
-    "pydantic._internal._known_annotated_metadata",
-    "pydantic._internal._fields",
-    "pydantic._internal._validators",
-    "pydantic._internal._dataclasses",
-    "pydantic.deprecated",
     "pydantic.deprecated.json",
     "pydantic.json",
     # Telethon
@@ -76,6 +74,7 @@ HIDDEN = [
     "telethon.tl.types",
     "telethon.extensions",
     "telethon.sessions",
+    "telethon.sync",
     # Cryptography (native extensions)
     "cryptography",
     "cryptography.hazmat",
@@ -95,22 +94,18 @@ HIDDEN = [
     "PIL.ExifTags",
     "PIL.Image",
     "PIL.ImageFile",
-    # dotenv
+    # python-dotenv
     "dotenv",
     "dotenv.parser",
-    # multipart
+    # python-multipart
     "multipart",
     "multipart.multipart",
 ]
 
-# -- Exclusions (things we don't need) ----------------------------------------
+# -- Exclusions (reduce bundle size) -----------------------------------------
 EXCLUDES = [
     "tkinter.test",
     "unittest",
-    "email",
-    "http.client",
-    "http.server",
-    "asyncio.test_utils",
     "test",
     "distutils",
     "setuptools",
@@ -118,13 +113,12 @@ EXCLUDES = [
     "pdb",
     "py_compile",
     "doctest",
-    "pdb",
 ]
 
 # -- Build -------------------------------------------------------------------
 a = Analysis(
-    [str(ROOT / "desktop" / "launcher.py")],
-    pathex=[str(ROOT)],
+    [os.path.join(ROOT, "desktop", "launcher.py")],
+    pathex=[ROOT],
     binaries=[],
     datas=DATAS,
     hiddenimports=HIDDEN,
@@ -136,15 +130,6 @@ a = Analysis(
     cipher=None,
     noarchive=False,
 )
-
-# Collect all submodules from packages we know we need
-for pkg in ("fastapi", "starlette", "uvicorn", "pydantic", "telethon",
-            "cryptography", "PIL", "dotenv", "multipart"):
-    try:
-        a.datas += Tree(os.path.dirname(__import__(pkg).__file__),
-                        prefix=pkg.replace(".", os.sep))
-    except Exception:
-        pass
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=None)
 
@@ -162,13 +147,13 @@ exe = EXE(
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=False,          # no terminal window on Windows/macOS
+    console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=None,              # TODO: add an .ico / .icns
+    icon=None,
 )
 
 if MODE == "onedir":

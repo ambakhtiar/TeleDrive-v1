@@ -125,9 +125,15 @@ The `-v TeleDrive-v1_data:/data` volume keeps your database and Telegram session
 
 > **Requires no Python, no git, no terminal typing.** Download a single executable file and double-click to run.
 
-1. Go to the [Releases page](https://github.com/ambakhtiar/TeleDrive-v1/releases)
-2. Download the file for your OS: `TeleDrive-Windows.exe`, `TeleDrive-macOS`, or `TeleDrive-Linux`
-3. Double-click the downloaded file
+**Download** — pick one:
+
+- **[Releases page](https://github.com/ambakhtiar/TeleDrive-v1/releases)** (stable)
+- **[Actions tab → latest build](https://github.com/ambakhtiar/TeleDrive-v1/actions)** → click the top workflow run → download the artifact for your OS
+
+Available files: `TeleDrive-Windows.exe`, `TeleDrive-macOS`, `TeleDrive-Linux`
+
+1. Download the file for your OS
+2. Double-click to run
 
 The launcher starts the server on `http://127.0.0.1:8000` and opens your default browser. A small status window stays open with a **Stop** button to shut down the server.
 

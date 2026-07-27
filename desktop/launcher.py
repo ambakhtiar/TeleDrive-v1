@@ -25,15 +25,26 @@ import webbrowser
 # ---------------------------------------------------------------------------
 
 def project_root():
-    """Repo root. In a PyInstaller bundle, this is sys._MEIPASS (where
-    main.py, app/, static/ and .env.example get extracted)."""
+    """Repo root.  In a PyInstaller bundle, ``sys._MEIPASS`` is the temp
+    directory where ``main.py``, ``app/``, ``static/`` and ``.env.example``
+    are extracted.  ``.env`` is NOT bundled — it lives alongside the
+    executable so the user can edit it."""
     if getattr(sys, "frozen", False):
         return sys._MEIPASS
     return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
+def env_dir():
+    """Directory where ``.env`` is stored — alongside the executable when
+    frozen, next to this script otherwise."""
+    if getattr(sys, "frozen", False):
+        return os.path.dirname(sys.executable)
+    return project_root()
+
+
 PROJECT = project_root()
-ENV_FILE = os.path.join(PROJECT, ".env")
+ENV_DIR = env_dir()
+ENV_FILE = os.path.join(ENV_DIR, ".env")
 ENV_EXAMPLE = os.path.join(PROJECT, ".env.example")
 PORT = 8000
 
@@ -43,8 +54,13 @@ PORT = 8000
 # ---------------------------------------------------------------------------
 
 def port_free(port, host="127.0.0.1"):
+    """True if the port is available to bind on."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        return s.connect_ex((host, port)) != 0
+        try:
+            s.bind((host, port))
+            return True
+        except OSError:
+            return False
 
 
 def find_free_port(start=8000):
@@ -240,8 +256,15 @@ def start_setup_server(port):
 _uvicorn_server = None
 
 
+def ensure_import_path():
+    """Make PROJECT importable so ``main:app`` resolves."""
+    if PROJECT not in sys.path:
+        sys.path.insert(0, PROJECT)
+
+
 def start_uvicorn(port):
     global _uvicorn_server
+    ensure_import_path()
     from uvicorn import Config, Server
 
     config = Config(
@@ -271,6 +294,8 @@ def stop_uvicorn():
 # ---------------------------------------------------------------------------
 
 def main():
+    ensure_import_path()
+
     # ---- Phase 1: setup wizard if needed ----
     if not env_ready():
         # Copy .env.example if it exists and .env doesn't

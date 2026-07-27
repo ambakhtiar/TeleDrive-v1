@@ -1,8 +1,11 @@
-# Build TeleDrive desktop launcher for Windows, macOS, and Linux on every
-# GitHub Release. Attaches the binaries to the release automatically.
+# Build TeleDrive desktop launcher for Windows, macOS, and Linux.
+# On push to main: uploads build artifacts (downloadable from Actions tab).
+# On release: attaches binaries to the GitHub Release.
 name: Build Desktop Launcher
 
 on:
+  push:
+    branches: [main]
   release:
     types: [published]
 
@@ -17,13 +20,13 @@ jobs:
         include:
           - os: windows-latest
             artifact_name: TeleDrive-Windows.exe
-            spec_extras: ""
+            zip_name: TeleDrive-Windows.zip
           - os: macos-latest
             artifact_name: TeleDrive-macOS
-            spec_extras: ""
+            zip_name: TeleDrive-macOS.zip
           - os: ubuntu-latest
             artifact_name: TeleDrive-Linux
-            spec_extras: ""
+            zip_name: TeleDrive-Linux.zip
 
     runs-on: ${{ matrix.os }}
 
@@ -49,23 +52,29 @@ jobs:
       - name: Build with PyInstaller
         run: pyinstaller desktop/launcher.spec
 
-      - name: Prepare artifact
+      - name: Zip the bundle (Linux/macOS) or prepare exe (Windows)
         shell: bash
         run: |
-          if [ -d "dist/TeleDrive" ]; then
-            # onedir mode — zip the folder
-            cd dist
-            zip -r "../TeleDrive-${{ runner.os }}.zip" TeleDrive/
-            cd ..
-          elif [ -f "dist/TeleDrive.exe" ]; then
-            mv dist/TeleDrive.exe "dist/${{ matrix.artifact_name }}"
-          elif [ -f "dist/TeleDrive" ]; then
-            mv dist/TeleDrive "dist/${{ matrix.artifact_name }}"
+          cd dist
+          if [ -d "TeleDrive" ]; then
+            zip -r "../${{ matrix.zip_name }}" TeleDrive/
           fi
+          cd ..
 
-      - name: Upload to Release
+      - name: Upload artifact (always)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.zip_name }}
+          path: |
+            dist/${{ matrix.zip_name }}
+            dist/TeleDrive/${{ matrix.artifact_name }}
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Attach to Release (on release only)
+        if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            dist/${{ matrix.artifact_name }}
-            TeleDrive-${{ runner.os }}.zip
+            ${{ matrix.zip_name }}
+            dist/TeleDrive/${{ matrix.artifact_name }}
