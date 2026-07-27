@@ -4,6 +4,12 @@ A self-hosted web app that uploads your files to a Telegram group — organized 
 
 No terminal login, no manual topic-ID lookups — everything is driven from the browser.
 
+> ⚠️ **⚠️ Security Warning ⚠️**
+>
+> **1. Dashboard has no built-in access control** — the web UI has no login screen. Anyone who can reach the URL has full control of the connected Telegram account. This is fine on `localhost` or a private LAN. **If you access from another device, phone, or the internet, you MUST set `DASHBOARD_PASSWORD` in `.env`.** See [Configuration](#-configuration) below.
+>
+> **2. One deployment = one user** — each running copy holds exactly one Telegram session. Do not share your instance's URL or device with others. If a friend wants to use it, they deploy their own copy with their own API credentials.
+
 ---
 
 ## ✨ Features
@@ -64,21 +70,24 @@ No terminal login, no manual topic-ID lookups — everything is driven from the 
 
 Pick the section that matches where you're running this.
 
-### Option A — Termux (Android phone)
+### Option A — Termux (Android phone, one-time setup)
 
-> **Docker will not run in Termux.** Android doesn't expose the kernel features (cgroups/namespaces) Docker needs, even with root in most cases. On a phone, always run the app directly with Python as shown below — Docker is only for Option C (a real computer/server).
+> **Docker will not run in Termux.** Android doesn't expose the kernel features (cgroups/namespaces) Docker needs, even with root in most cases. On a phone, always run the app directly with Python.
+
+**Easy way (no terminal after setup):** see the [📱 Android section](#-android-no-terminal-after-setup) below.
+
+**Manual way** (if you prefer to run each step yourself):
 
 ```bash
 pkg update && pkg upgrade -y
-pkg install python git -y
-
-# Let Termux access your phone's shared storage (needed for local-path scanning)
+pkg install git python clang rust binutils make pkg-config libffi openssl -y
 termux-setup-storage
-
 git clone https://github.com/ambakhtiar/TeleDrive-v1
 cd TeleDrive-v1
-
-pip install -r requirements.txt
+pkg install python-cryptography python-pillow -y
+export ANDROID_API_LEVEL=$(getprop ro.build.version.sdk)
+export PIP_BREAK_SYSTEM_PACKAGES=1
+pip install fastapi==0.111.0 uvicorn==0.30.1 telethon==1.36.0 python-dotenv==1.0.1 pydantic==2.11.7 python-multipart==0.0.9
 ```
 
 ### Option B — Windows / macOS / Linux (direct Python)
@@ -109,6 +118,49 @@ docker run -d --name TeleDrive-v1 -p 8000:8000 \
   telegram-uploader
 ```
 The `-v TeleDrive-v1_data:/data` volume keeps your database and Telegram session across container restarts — without it, you'd have to log in again every time the container recreates.
+
+---
+
+### Option D — Desktop (Windows/Mac/Linux, no install needed)
+
+> **Requires no Python, no git, no terminal typing.** Download a single executable file and double-click to run.
+
+1. Go to the [Releases page](https://github.com/ambakhtiar/TeleDrive-v1/releases)
+2. Download the file for your OS: `TeleDrive-Windows.exe`, `TeleDrive-macOS`, or `TeleDrive-Linux`
+3. Double-click the downloaded file
+
+The launcher starts the server on `http://127.0.0.1:8000` and opens your default browser. A small status window stays open with a **Stop** button to shut down the server.
+
+First time: if no `.env` exists, the launcher shows a setup page in your browser where you enter `API_ID`, `API_HASH`, and `DASHBOARD_PASSWORD` — no terminal needed.
+
+---
+
+## 📱 Android (no terminal after setup)
+
+> After the one-time setup below, you only tap a home-screen widget to launch. No more terminal.
+
+**Prerequisites** — install these three apps from **F-Droid** (not Google Play):
+- [Termux](https://f-droid.org/packages/com.termux/)
+- [Termux:API](https://f-droid.org/packages/com.termux.api/)
+- [Termux:Widget](https://f-droid.org/packages/com.termux.widget/)
+
+**One-time setup** — open Termux and run:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ambakhtiar/TeleDrive-v1/main/android/setup-termux.sh | bash
+```
+
+The script installs everything (Python, libraries, build tools) and creates two home-screen shortcuts.
+
+**After setup:**
+1. Edit `.env` in `~/TeleDrive-v1/.env` with your `API_ID`, `API_HASH`, and `DASHBOARD_PASSWORD`
+2. Long-press your home screen → **Widgets** → **Termux:Widget**
+3. Choose the **TeleDrive** shortcut
+4. Tap the widget — the server starts and your browser opens to the dashboard
+
+To stop the server, tap the **TeleDrive-Stop** widget.
+
+> ⚠️ **Important:** `uvicorn` binds to `127.0.0.1` (local-only) for security. If you need to access from another device on your LAN, edit the shortcut script or run `uvicorn main:app --host 0.0.0.0 --port 8000` manually.
 
 ---
 
