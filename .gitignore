@@ -68,6 +68,7 @@ env/
 # PyInstaller build output
 build/
 dist/
+/TeleDrive-*.zip
 
 # Test log files
 *.log

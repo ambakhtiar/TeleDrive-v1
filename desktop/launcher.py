@@ -20,6 +20,30 @@ from urllib.request import urlopen
 import webbrowser
 
 
+class _NullStream:
+    """Stand-in for sys.stdout/sys.stderr, which PyInstaller leaves as None
+    in a windowed (console=False) build — there's no console to attach to.
+    Several libraries (uvicorn's default log formatter included) assume
+    these are real streams and call .isatty()/.write() on them, crashing
+    with a raw AttributeError that logging.dictConfig re-wraps as the
+    unhelpful "Unable to configure formatter 'default'"."""
+
+    def write(self, *args, **kwargs):
+        pass
+
+    def flush(self, *args, **kwargs):
+        pass
+
+    def isatty(self):
+        return False
+
+
+if sys.stdout is None:
+    sys.stdout = _NullStream()
+if sys.stderr is None:
+    sys.stderr = _NullStream()
+
+
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
