@@ -73,9 +73,16 @@ jobs:
             brew list --formula
             exit 1
           fi
-          PY="$(brew --prefix "$PYFORMULA")/bin/python3"
-          echo "PYTHON_BIN=$PY" >> "$GITHUB_ENV"
-          "$PY" --version
+          BASE_PY="$(brew --prefix "$PYFORMULA")/bin/python3"
+          "$BASE_PY" --version
+          # Homebrew's Python is PEP 668 "externally managed" — plain pip
+          # install is refused. A venv inherits the base interpreter's
+          # compiled stdlib (tkinter included) without recompiling anything,
+          # so this keeps the Tk fix above while sidestepping that guard
+          # properly instead of forcing past it with --break-system-packages.
+          "$BASE_PY" -m venv "$HOME/build-venv"
+          echo "PYTHON_BIN=$HOME/build-venv/bin/python3" >> "$GITHUB_ENV"
+          "$HOME/build-venv/bin/python3" --version
 
       - name: Set up Python + Tk (Linux)
         if: runner.os == 'Linux'
@@ -83,8 +90,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             libffi-dev libssl-dev python3 python3-venv python3-pip python3-tk tk-dev
-          echo "PYTHON_BIN=$(command -v python3)" >> "$GITHUB_ENV"
-          python3 --version
+          python3 -m venv "$HOME/build-venv"
+          echo "PYTHON_BIN=$HOME/build-venv/bin/python3" >> "$GITHUB_ENV"
+          "$HOME/build-venv/bin/python3" --version
 
       - name: Set PYTHON_BIN (Windows)
         if: runner.os == 'Windows'
