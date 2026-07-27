@@ -16,7 +16,7 @@ jobs:
   build:
     name: ${{ matrix.os }}
     strategy:
-      fail-fast: false    # build all OSes even if one fails
+      fail-fast: false
       matrix:
         include:
           - os: windows-latest
@@ -39,11 +39,18 @@ jobs:
         with:
           python-version: "3.11"
 
+      # ── System dependencies per OS ──────────────────────────────────────
+
       - name: Install system dependencies (Linux)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libffi-dev libssl-dev
+          sudo apt-get install -y --no-install-recommends \
+            libffi-dev libssl-dev python3-tk tk-dev
+
+      # ── Python packages ─────────────────────────────────────────────────
+      # cryptg is Windows-only; uvicorn[standard] extras can fail on macOS.
+      # Install platform-specific sets to avoid build failures.
 
       - name: Install Python dependencies (Windows)
         if: runner.os == 'Windows'
@@ -51,31 +58,53 @@ jobs:
           python -m pip install --upgrade pip wheel setuptools
           pip install -r requirements.txt pyinstaller
 
-      - name: Install Python dependencies (macOS/Linux)
-        if: runner.os != 'Windows'
+      - name: Install Python dependencies (macOS)
+        if: runner.os == 'macOS'
         shell: bash
         run: |
           python -m pip install --upgrade pip wheel setuptools
-          # Skip cryptg (Windows-only AES speedup) and use plain uvicorn
           pip install \
             fastapi==0.111.0 uvicorn==0.30.1 telethon==1.36.0 \
             python-dotenv==1.0.1 pydantic==2.11.7 python-multipart==0.0.9 \
             Pillow==11.3.0 cryptography==43.0.1 \
             pyinstaller
 
+      - name: Install Python dependencies (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip wheel setuptools
+          pip install \
+            fastapi==0.111.0 uvicorn==0.30.1 telethon==1.36.0 \
+            python-dotenv==1.0.1 pydantic==2.11.7 python-multipart==0.0.9 \
+            Pillow==11.3.0 cryptography==43.0.1 \
+            pyinstaller
+
+      # ── Build ───────────────────────────────────────────────────────────
+
       - name: Build with PyInstaller
         run: pyinstaller desktop/launcher.spec
 
-      - name: Prepare artifact
-        shell: bash
-        run: |
-          cd dist
-          if [ -d "TeleDrive" ]; then
-            zip -r "../${{ matrix.zip_name }}" TeleDrive/
-          fi
-          cd ..
+      # ── Package (use Python zipfile — works everywhere) ─────────────────
 
-      - name: Upload artifact (always)
+      - name: Zip the bundle
+        shell: python
+        run: |
+          import os, zipfile
+          dist = "dist"
+          zip_name = "${{ matrix.zip_name }}"
+          with zipfile.ZipFile(zip_name, "w", zipfile.ZIP_DEFLATED) as zf:
+              for root, dirs, files in os.walk(os.path.join(dist, "TeleDrive")):
+                  for f in files:
+                      full = os.path.join(root, f)
+                      arc = os.path.relpath(full, dist)
+                      zf.write(full, arc)
+          size_mb = os.path.getsize(zip_name) / (1024 * 1024)
+          print(f"Created {zip_name} ({size_mb:.1f} MB)")
+
+      # ── Upload ──────────────────────────────────────────────────────────
+
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.zip_name }}
@@ -83,7 +112,7 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: Attach to Release (on release only)
+      - name: Attach to Release
         if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
